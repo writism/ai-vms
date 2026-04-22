@@ -13,6 +13,10 @@ from app.domains.face.adapter.inbound.api.face_router import router as face_rout
 from app.domains.stream.adapter.inbound.api.stream_router import router as stream_router
 from app.domains.agent.adapter.inbound.api.agent_router import router as agent_router
 from app.infrastructure.config.settings import settings
+from app.infrastructure.errors import DomainError, domain_error_handler, unhandled_error_handler
+from app.infrastructure.logging_config import setup_logging
+
+setup_logging()
 
 
 @asynccontextmanager
@@ -44,6 +48,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_exception_handler(DomainError, domain_error_handler)
+app.add_exception_handler(Exception, unhandled_error_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_origins.split(",")],
@@ -65,4 +72,17 @@ app.include_router(agent_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": settings.app_name}
+    from app.infrastructure.ai.insightface_service import insightface_service
+    from app.infrastructure.ai.yolo_service import yolo_service
+    from app.infrastructure.event_bus.mqtt_client import mqtt_client
+
+    return {
+        "status": "ok",
+        "service": settings.app_name,
+        "version": "0.1.0",
+        "services": {
+            "insightface": insightface_service.is_loaded,
+            "yolo": yolo_service.is_loaded,
+            "mqtt": mqtt_client._connected,
+        },
+    }

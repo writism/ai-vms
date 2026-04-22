@@ -1,0 +1,12 @@
+# AI / ML Dependencies (GPU 환경에서 설치)
+-r requirements.txt
+
+insightface>=0.7.3
+onnxruntime-gpu>=1.19.0
+ultralytics>=8.3.0
+mediapipe>=0.10.0
+opencv-python-headless>=4.10.0
+numpy>=1.26.0
+scikit-learn>=1.5.0
+langgraph>=0.2.0
+langchain-openai>=0.2.0
