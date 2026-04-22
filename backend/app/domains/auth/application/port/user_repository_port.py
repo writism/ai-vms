@@ -1,0 +1,18 @@
+from abc import ABC, abstractmethod
+from uuid import UUID
+
+from app.domains.auth.domain.entity.user import User
+
+
+class UserRepositoryPort(ABC):
+    @abstractmethod
+    async def save(self, user: User) -> User: ...
+
+    @abstractmethod
+    async def find_by_id(self, user_id: UUID) -> User | None: ...
+
+    @abstractmethod
+    async def find_by_email(self, email: str) -> User | None: ...
+
+    @abstractmethod
+    async def find_all(self) -> list[User]: ...
