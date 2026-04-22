@@ -1,10 +1,15 @@
-import numpy as np
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from app.domains.alert.application.port.danger_detection_port import (
     DangerDetectionPort,
     DangerDetectionResult,
 )
 from app.infrastructure.ai.yolo_service import yolo_service
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class YoloDangerAdapter(DangerDetectionPort):

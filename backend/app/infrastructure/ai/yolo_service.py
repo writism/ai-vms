@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from app.infrastructure.config.settings import settings
+
+if TYPE_CHECKING:
+    import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +30,7 @@ DANGER_CLASS_MAP = {
 
 class YoloService:
     def __init__(self) -> None:
-        self._model = None
+        self._model: Any = None
         self._loaded = False
 
     async def load_model(self) -> bool:

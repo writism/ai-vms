@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from app.infrastructure.config.settings import settings
+
+if TYPE_CHECKING:
+    import numpy as np
 
 logger = logging.getLogger(__name__)
 

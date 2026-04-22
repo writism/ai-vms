@@ -1,10 +1,15 @@
-import numpy as np
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from app.domains.face.application.port.face_recognition_port import (
     DetectedFaceResult,
     FaceRecognitionPort,
 )
 from app.infrastructure.ai.insightface_service import insightface_service
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class InsightFaceAdapter(FaceRecognitionPort):

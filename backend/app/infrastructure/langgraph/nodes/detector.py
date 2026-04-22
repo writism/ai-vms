@@ -1,7 +1,5 @@
 import logging
 
-import numpy as np
-
 from app.infrastructure.ai.insightface_service import insightface_service
 from app.infrastructure.ai.yolo_service import yolo_service
 from app.infrastructure.langgraph.state import AgentState, DetectionResult
@@ -14,8 +12,10 @@ async def detector_node(state: AgentState) -> AgentState:
     if frame_data is None:
         return {**state, "error": "No frame data available"}
 
-    frame = np.frombuffer(frame_data, dtype=np.uint8)
     import cv2
+    import numpy as np
+
+    frame = np.frombuffer(frame_data, dtype=np.uint8)
     frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
     if frame is None:
         return {**state, "error": "Failed to decode frame"}

@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from app.infrastructure.config.settings import settings
+
+if TYPE_CHECKING:
+    import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +22,7 @@ class DetectedFace:
 
 class InsightFaceService:
     def __init__(self) -> None:
-        self._detector = None
-        self._recognizer = None
+        self._app: Any = None
         self._loaded = False
 
     async def load_models(self) -> bool:
