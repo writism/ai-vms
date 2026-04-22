@@ -10,6 +10,9 @@ from app.infrastructure.database.session import Base
 
 from app.domains.camera.infrastructure.orm.camera_orm import CameraORM, NetworkORM  # noqa: F401
 from app.domains.auth.infrastructure.orm.user_orm import UserORM  # noqa: F401
+from app.domains.alert.infrastructure.orm.alert_orm import DangerEventORM, AlertRuleORM  # noqa: F401
+from app.domains.event.infrastructure.orm.event_orm import EventORM  # noqa: F401
+from app.domains.face.infrastructure.orm.face_orm import IdentityORM, FaceORM  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     app_name: str = "AI-VMS"
     debug: bool = False
 
+    use_database: bool = False
     database_url: str = "postgresql+asyncpg://aivms:aivms@localhost:5432/aivms"
     redis_url: str = "redis://localhost:6379"
     qdrant_url: str = "http://localhost:6333"
