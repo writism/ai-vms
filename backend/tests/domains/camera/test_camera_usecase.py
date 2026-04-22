@@ -3,8 +3,7 @@ import pytest
 from app.domains.camera.adapter.outbound.persistence.in_memory_camera_repository import InMemoryCameraRepository
 from app.domains.camera.application.request.camera_request import RegisterCameraRequest
 from app.domains.camera.application.usecase.register_camera_usecase import RegisterCameraUseCase
-from app.domains.camera.application.usecase.list_cameras_usecase import ListCamerasUseCase
-from app.domains.camera.application.usecase.get_camera_usecase import GetCameraUseCase
+from app.domains.camera.application.usecase.get_camera_usecase import GetCameraUseCase, ListCamerasUseCase
 from app.domains.camera.domain.entity.camera import CameraStatus
 
 

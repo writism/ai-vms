@@ -1,13 +1,11 @@
-from passlib.context import CryptContext
+import bcrypt
 
 from app.domains.auth.application.port.password_port import PasswordPort
-
-_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class BcryptPasswordService(PasswordPort):
     def hash(self, password: str) -> str:
-        return _ctx.hash(password)
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
     def verify(self, plain: str, hashed: str) -> bool:
-        return _ctx.verify(plain, hashed)
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
