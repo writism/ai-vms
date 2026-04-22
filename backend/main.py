@@ -11,11 +11,30 @@ from app.domains.event.adapter.inbound.api.event_router import router as event_r
 from app.domains.camera.adapter.inbound.api.network_router import router as network_router
 from app.domains.face.adapter.inbound.api.face_router import router as face_router
 from app.domains.stream.adapter.inbound.api.stream_router import router as stream_router
+from app.domains.agent.adapter.inbound.api.agent_router import router as agent_router
 from app.infrastructure.config.settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import logging
+    logger = logging.getLogger(__name__)
+
+    from app.infrastructure.ai.insightface_service import insightface_service
+    from app.infrastructure.ai.yolo_service import yolo_service
+    from app.infrastructure.event_bus.mqtt_client import mqtt_client
+
+    await insightface_service.load_models()
+    await yolo_service.load_model()
+    await mqtt_client.connect()
+
+    logger.info(
+        "AI services: InsightFace=%s, YOLO=%s, MQTT=%s",
+        insightface_service.is_loaded,
+        yolo_service.is_loaded,
+        mqtt_client._connected,
+    )
+
     yield
 
 
@@ -41,6 +60,7 @@ app.include_router(face_router, prefix="/api")
 app.include_router(alert_router, prefix="/api")
 app.include_router(event_router, prefix="/api")
 app.include_router(notification_router, prefix="/api")
+app.include_router(agent_router, prefix="/api")
 
 
 @app.get("/health")
