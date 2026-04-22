@@ -3,8 +3,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.domains.alert.adapter.inbound.api.alert_router import router as alert_router
+from app.domains.alert.adapter.inbound.api.notification_router import router as notification_router
 from app.domains.auth.adapter.inbound.api.auth_router import router as auth_router
 from app.domains.camera.adapter.inbound.api.camera_router import router as camera_router
+from app.domains.event.adapter.inbound.api.event_router import router as event_router
 from app.domains.camera.adapter.inbound.api.network_router import router as network_router
 from app.domains.face.adapter.inbound.api.face_router import router as face_router
 from app.domains.stream.adapter.inbound.api.stream_router import router as stream_router
@@ -35,6 +38,9 @@ app.include_router(camera_router, prefix="/api")
 app.include_router(network_router, prefix="/api")
 app.include_router(stream_router, prefix="/api")
 app.include_router(face_router, prefix="/api")
+app.include_router(alert_router, prefix="/api")
+app.include_router(event_router, prefix="/api")
+app.include_router(notification_router, prefix="/api")
 
 
 @app.get("/health")
