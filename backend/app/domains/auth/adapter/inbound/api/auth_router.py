@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.domains.auth.adapter.inbound.api.dependencies import get_current_user, get_login_usecase, _seed_admin
+from app.domains.auth.adapter.inbound.api.dependencies import get_current_user, get_login_usecase
 from app.domains.auth.application.request.auth_request import LoginRequest
 from app.domains.auth.application.response.auth_response import TokenResponse, UserResponse
 from app.domains.auth.application.usecase.login_usecase import LoginUseCase
@@ -14,7 +14,6 @@ async def login(
     request: LoginRequest,
     usecase: LoginUseCase = Depends(get_login_usecase),
 ) -> TokenResponse:
-    await _seed_admin()
     result = await usecase.execute(request)
     if result is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")

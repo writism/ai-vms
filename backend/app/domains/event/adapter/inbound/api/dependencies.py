@@ -1,3 +1,4 @@
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.event.adapter.outbound.persistence.in_memory_event_repository import InMemoryEventRepository
@@ -15,9 +16,18 @@ def _get_event_repo(session: AsyncSession | None = None) -> EventRepositoryPort:
     return _in_memory_event_repo
 
 
-def get_create_event_usecase() -> CreateEventUseCase:
-    return CreateEventUseCase(_get_event_repo())
+async def _get_session():
+    if settings.use_database:
+        from app.infrastructure.database.session import get_async_session
+        async for session in get_async_session():
+            yield session
+    else:
+        yield None
 
 
-def get_list_events_usecase() -> ListEventsUseCase:
-    return ListEventsUseCase(_get_event_repo())
+def get_create_event_usecase(session: AsyncSession | None = Depends(_get_session)) -> CreateEventUseCase:
+    return CreateEventUseCase(_get_event_repo(session))
+
+
+def get_list_events_usecase(session: AsyncSession | None = Depends(_get_session)) -> ListEventsUseCase:
+    return ListEventsUseCase(_get_event_repo(session))

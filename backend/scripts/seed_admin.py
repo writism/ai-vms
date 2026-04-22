@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.infrastructure.config.settings import settings
 
-ADMIN_EMAIL = "admin@ai-vms.local"
+ADMIN_EMAIL = "admin@ai-vms.io"
 ADMIN_PASSWORD = "admin1234!"
 ADMIN_NAME = "관리자"
 

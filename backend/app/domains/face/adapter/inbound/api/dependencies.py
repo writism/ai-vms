@@ -1,3 +1,4 @@
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.face.adapter.outbound.external.qdrant_embedding_adapter import QdrantEmbeddingAdapter
@@ -32,21 +33,30 @@ def _get_face_repo(session: AsyncSession | None = None) -> FaceRepositoryPort:
     return _in_memory_face_repo
 
 
-def get_register_identity_usecase() -> RegisterIdentityUseCase:
-    return RegisterIdentityUseCase(_get_identity_repo())
+async def _get_session():
+    if settings.use_database:
+        from app.infrastructure.database.session import get_async_session
+        async for session in get_async_session():
+            yield session
+    else:
+        yield None
 
 
-def get_list_identities_usecase() -> ListIdentitiesUseCase:
-    return ListIdentitiesUseCase(_get_identity_repo())
+def get_register_identity_usecase(session: AsyncSession | None = Depends(_get_session)) -> RegisterIdentityUseCase:
+    return RegisterIdentityUseCase(_get_identity_repo(session))
 
 
-def get_identity_usecase() -> GetIdentityUseCase:
-    return GetIdentityUseCase(_get_identity_repo())
+def get_list_identities_usecase(session: AsyncSession | None = Depends(_get_session)) -> ListIdentitiesUseCase:
+    return ListIdentitiesUseCase(_get_identity_repo(session))
 
 
-def get_register_face_usecase() -> RegisterFaceUseCase:
-    return RegisterFaceUseCase(_get_face_repo(), _embedding_store)
+def get_identity_usecase(session: AsyncSession | None = Depends(_get_session)) -> GetIdentityUseCase:
+    return GetIdentityUseCase(_get_identity_repo(session))
 
 
-def get_search_face_usecase() -> SearchFaceUseCase:
-    return SearchFaceUseCase(_embedding_store, _get_identity_repo())
+def get_register_face_usecase(session: AsyncSession | None = Depends(_get_session)) -> RegisterFaceUseCase:
+    return RegisterFaceUseCase(_get_face_repo(session), _embedding_store)
+
+
+def get_search_face_usecase(session: AsyncSession | None = Depends(_get_session)) -> SearchFaceUseCase:
+    return SearchFaceUseCase(_embedding_store, _get_identity_repo(session))
