@@ -10,6 +10,7 @@ const navigation = [
   { name: "라이브뷰", href: "/live", icon: "🖥" },
   { name: "인물관리", href: "/faces", icon: "👤" },
   { name: "알림", href: "/alerts", icon: "🔔" },
+  { name: "알림 규칙", href: "/alerts/rules", icon: "📐" },
   { name: "이벤트", href: "/events", icon: "📋" },
   { name: "설정", href: "/settings", icon: "⚙" },
 ];
