@@ -17,3 +17,13 @@ class Go2RtcStreamAdapter(StreamPort):
 
     async def webrtc_offer(self, stream_name: str, sdp_offer: str) -> str:
         return await self._client.get_webrtc_offer(stream_name, sdp_offer)
+
+    async def get_active_stream_names(self) -> set[str]:
+        streams = await self._client.list_streams()
+        active = set()
+        for name, data in streams.items():
+            for producer in data.get("producers", []):
+                if "remote_addr" in producer:
+                    active.add(name)
+                    break
+        return active

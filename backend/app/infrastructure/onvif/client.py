@@ -64,9 +64,12 @@ class OnvifDeviceDetail:
 
 
 def _extract_tag(xml: str, tag: str) -> str | None:
-    pattern = re.compile(rf"<[\w:]*{tag}[^>]*>(.*?)</[\w:]*{tag}>", re.DOTALL)
+    pattern = re.compile(rf"<(?:[\w]+:)?{tag}[^>]*>(.*?)</(?:[\w]+:)?{tag}>", re.DOTALL)
     m = pattern.search(xml)
-    return m.group(1).strip() if m else None
+    if not m:
+        return None
+    value = m.group(1).strip()
+    return value.replace("&amp;", "&")
 
 
 async def get_device_detail(

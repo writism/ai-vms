@@ -32,6 +32,19 @@ async def lifespan(app: FastAPI):
     await yolo_service.load_model()
     await mqtt_client.connect()
 
+    from app.domains.auth.adapter.inbound.api.dependencies import _in_memory_user_repo, _password_service
+    from app.domains.auth.domain.entity.user import User, UserRole
+    existing = await _in_memory_user_repo.find_by_email("admin@ai-vms.io")
+    if existing is None:
+        admin = User(
+            email="admin@ai-vms.io",
+            hashed_password=_password_service.hash("admin1234!"),
+            name="관리자",
+            role=UserRole.ADMIN,
+        )
+        await _in_memory_user_repo.save(admin)
+        logger.info("Default admin user created: admin@ai-vms.io")
+
     logger.info(
         "AI services: InsightFace=%s, YOLO=%s, MQTT=%s",
         insightface_service.is_loaded,
@@ -72,9 +85,27 @@ app.include_router(agent_router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
+    import asyncio
+    import socket
+
     from app.infrastructure.ai.insightface_service import insightface_service
     from app.infrastructure.ai.yolo_service import yolo_service
     from app.infrastructure.event_bus.mqtt_client import mqtt_client
+
+    async def check_turn() -> bool:
+        try:
+            loop = asyncio.get_event_loop()
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(2)
+            stun_request = bytes.fromhex("000100002112a442000000000000000000000000")
+            await loop.run_in_executor(None, sock.sendto, stun_request, ("localhost", 3478))
+            data = await loop.run_in_executor(None, sock.recv, 1024)
+            sock.close()
+            return len(data) > 0
+        except Exception:
+            return False
+
+    turn_ok = await check_turn()
 
     return {
         "status": "ok",
@@ -83,6 +114,7 @@ async def health_check():
         "services": {
             "insightface": insightface_service.is_loaded,
             "yolo": yolo_service.is_loaded,
+            "turn": turn_ok,
             "mqtt": mqtt_client._connected,
         },
     }

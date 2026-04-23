@@ -10,6 +10,19 @@ class RegisterCameraRequest(BaseModel):
     onvif_port: int = 80
 
 
+class UpdateCameraRequest(BaseModel):
+    name: str | None = None
+    rtsp_url: str | None = None
+    onvif_port: int | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+
+
+class FetchRtspUrlRequest(BaseModel):
+    username: str
+    password: str
+
+
 class RegisterNetworkRequest(BaseModel):
     name: str
     subnet: str

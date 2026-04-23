@@ -11,7 +11,7 @@ export default function LiveViewPage() {
   const { cameras } = useCameras();
   const [layout, setLayout] = useState<GridLayout>(4);
 
-  const streamNames = cameras.map((c) => c.id);
+  const streams = cameras.map((c) => ({ name: c.id, rtspUrl: c.rtsp_url }));
 
   return (
     <div>
@@ -32,7 +32,7 @@ export default function LiveViewPage() {
       </div>
 
       <div className="mt-4">
-        <MultiView streamNames={streamNames} layout={layout} />
+        <MultiView streams={streams} layout={layout} />
       </div>
     </div>
   );

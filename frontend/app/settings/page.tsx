@@ -1,6 +1,7 @@
 "use client";
 
 import { useAlertRules } from "@/features/alert/application/hooks/useAlertRules";
+import { useServiceHealth, type ServiceStatus } from "@/features/stream/application/hooks/useServiceHealth";
 import { env } from "@/infrastructure/config/env";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -12,8 +13,28 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+const statusConfig: Record<ServiceStatus, { color: string; label: string }> = {
+  checking: { color: "bg-yellow-400", label: "확인 중" },
+  connected: { color: "bg-green-500", label: "연결됨" },
+  disconnected: { color: "bg-red-500", label: "연결 실패" },
+};
+
+function StatusRow({ label, value, status }: { label: string; value: string; status: ServiceStatus }) {
+  const cfg = statusConfig[status];
+  return (
+    <div className="flex items-center justify-between border-b py-3 last:border-b-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-mono">{value}</span>
+        <span className={`inline-block h-2.5 w-2.5 rounded-full ${cfg.color}`} title={cfg.label} />
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { rules, isLoading } = useAlertRules();
+  const health = useServiceHealth();
 
   return (
     <div className="space-y-6">
@@ -25,12 +46,13 @@ export default function SettingsPage() {
       {/* Connection Settings */}
       <div className="rounded-lg border bg-card">
         <div className="border-b px-4 py-3">
-          <h3 className="font-semibold">연결 설정</h3>
+          <h3 className="font-semibold">연결 상태</h3>
         </div>
         <div className="px-4">
-          <InfoRow label="API 서버" value={env.apiUrl} />
-          <InfoRow label="WebSocket" value={env.wsUrl} />
-          <InfoRow label="go2rtc 서버" value={env.go2rtcUrl} />
+          <StatusRow label="API 서버" value={env.apiUrl} status={health.api} />
+          <StatusRow label="WebSocket" value={env.wsUrl} status={health.api} />
+          <StatusRow label="go2rtc 스트리밍" value={env.go2rtcUrl} status={health.go2rtc} />
+          <StatusRow label="TURN 서버" value={env.turnUrl} status={health.turn} />
         </div>
       </div>
 

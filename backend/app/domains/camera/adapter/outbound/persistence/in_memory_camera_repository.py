@@ -21,5 +21,9 @@ class InMemoryCameraRepository(CameraRepositoryPort):
     async def find_by_network_id(self, network_id: UUID) -> list[Camera]:
         return [c for c in self._store.values() if c.network_id == network_id]
 
+    async def update(self, camera: Camera) -> Camera:
+        self._store[camera.id] = camera
+        return camera
+
     async def delete(self, camera_id: UUID) -> bool:
         return self._store.pop(camera_id, None) is not None

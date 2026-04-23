@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { env } from "@/infrastructure/config/env";
+import { streamApi } from "../../infrastructure/api/streamApi";
 
 export type WebRTCState = "idle" | "connecting" | "connected" | "failed";
 
-export function useWebRTC(streamName: string | null) {
+export function useWebRTC(streamName: string | null, rtspUrl?: string | null) {
   const [state, setState] = useState<WebRTCState>("idle");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -16,8 +17,20 @@ export function useWebRTC(streamName: string | null) {
     setState("connecting");
 
     try {
+      if (rtspUrl) {
+        await streamApi.register(streamName, rtspUrl);
+      }
+
+      const stunUrl = env.turnUrl.replace(/^turn:/, "stun:");
       const pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        iceServers: [
+          { urls: stunUrl },
+          {
+            urls: env.turnUrl,
+            username: env.turnUser,
+            credential: env.turnPass,
+          },
+        ],
       });
       pcRef.current = pc;
 
@@ -59,7 +72,7 @@ export function useWebRTC(streamName: string | null) {
     } catch {
       setState("failed");
     }
-  }, [streamName]);
+  }, [streamName, rtspUrl]);
 
   const disconnect = useCallback(() => {
     pcRef.current?.close();

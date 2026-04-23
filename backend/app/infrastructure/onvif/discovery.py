@@ -5,6 +5,7 @@ import socket
 import struct
 import uuid
 from dataclasses import dataclass
+from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +58,11 @@ def _parse_probe_match(xml_data: str) -> list[DiscoveredDevice]:
         hardware = None
         for scope in scopes:
             if "/name/" in scope:
-                model = scope.rsplit("/", 1)[-1]
+                model = unquote(scope.rsplit("/", 1)[-1])
             elif "/manufacturer/" in scope.lower():
-                manufacturer = scope.rsplit("/", 1)[-1]
+                manufacturer = unquote(scope.rsplit("/", 1)[-1])
             elif "/hardware/" in scope.lower():
-                hardware = scope.rsplit("/", 1)[-1]
+                hardware = unquote(scope.rsplit("/", 1)[-1])
 
         for xaddr in xaddrs:
             ip_match = re.search(r"https?://([^:/]+)(?::(\d+))?", xaddr)

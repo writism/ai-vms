@@ -1,5 +1,6 @@
 api:
   listen: ":1984"
+  origin: "*"
 
 rtsp:
   listen: ":8554"
@@ -7,4 +8,18 @@ rtsp:
 webrtc:
   listen: ":8555"
 
-streams: {}
+streams:
+  f5396aed-af00-4187-a9f0-123af39099e4:
+    - rtsp://192.168.0.93:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1
+  91694690-4650-485e-8f6b-8231a9c3058f:
+    - rtsp://admin:qazwsx123@192.168.0.93:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1
+  fe727f84-0bad-42b9-bf61-80721fc5c48c:
+    - rtsp://admin:qazwsx123@192.168.0.93:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1
+  d221eb0d-6940-4bfc-97bd-48af5d60bf9a:
+    - rtsp://admin:qazwsx123@192.168.0.93:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1
+  3c718d05-7929-4dea-a486-7c9b25704bb7:
+    - rtsp://admin:qazwsx123@192.168.0.93:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1
+  549ce449-23bb-4569-a8d1-ced1c95d45e5:
+    - rtsp://admin:qazwsx123@192.168.0.93:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1
+  debbfe55-87e3-4cf0-92fc-8f619634e6d7:
+    - rtsp://admin:qazwsx123@192.168.0.93:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1

@@ -17,6 +17,20 @@ export const cameraApi = {
   discover: (timeout = 3.0) =>
     http.post<DiscoveredCamera[]>("/api/cameras/discover", { timeout }),
 
+  update: (
+    id: string,
+    data: {
+      name?: string;
+      rtsp_url?: string;
+      onvif_port?: number;
+      manufacturer?: string;
+      model?: string;
+    },
+  ) => http.patch<Camera>(`/api/cameras/${id}`, data),
+
+  fetchRtspUrl: (id: string, data: { username: string; password: string }) =>
+    http.post<Camera>(`/api/cameras/${id}/fetch-rtsp`, data),
+
   batchRegister: (data: {
     network_id?: string;
     cameras: {

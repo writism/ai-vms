@@ -6,14 +6,16 @@ import { cn } from "@/lib/utils";
 
 export function VideoPlayer({
   streamName,
+  rtspUrl,
   className,
   autoPlay = true,
 }: {
   streamName: string;
+  rtspUrl?: string | null;
   className?: string;
   autoPlay?: boolean;
 }) {
-  const { state, videoRef, connect, disconnect } = useWebRTC(streamName);
+  const { state, videoRef, connect, disconnect } = useWebRTC(streamName, rtspUrl);
 
   useEffect(() => {
     if (autoPlay) {

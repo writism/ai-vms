@@ -32,6 +32,13 @@ class SqlAlchemyCameraRepository(CameraRepositoryPort):
         result = await self._session.execute(select(CameraORM).where(CameraORM.network_id == network_id))
         return [CameraMapper.to_entity(orm) for orm in result.scalars().all()]
 
+    async def update(self, camera: Camera) -> Camera:
+        orm = CameraMapper.to_orm(camera)
+        merged = await self._session.merge(orm)
+        await self._session.flush()
+        await self._session.refresh(merged)
+        return CameraMapper.to_entity(merged)
+
     async def delete(self, camera_id: UUID) -> bool:
         orm = await self._session.get(CameraORM, camera_id)
         if orm is None:

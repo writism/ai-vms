@@ -72,6 +72,9 @@ services:
       - NEXT_PUBLIC_API_URL=http://backend:8000
       - NEXT_PUBLIC_WS_URL=ws://backend:8000
       - NEXT_PUBLIC_GO2RTC_URL=http://go2rtc:1984
+      - NEXT_PUBLIC_TURN_URL=turn:coturn:3478
+      - NEXT_PUBLIC_TURN_USER=aivms
+      - NEXT_PUBLIC_TURN_PASS=aivms1234
     restart: unless-stopped
     depends_on:
       - backend
@@ -133,11 +136,16 @@ services:
 
   go2rtc:
     image: alexxit/go2rtc:latest
-    ports:
-      - "1984:1984"
-      - "8554:8554"
-      - "8555:8555/tcp"
-      - "8555:8555/udp"
+    network_mode: host
+    volumes:
+      - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml
+    restart: unless-stopped
+
+  coturn:
+    image: coturn/coturn:latest
+    network_mode: host
+    volumes:
+      - ./coturn/turnserver.conf:/etc/turnserver.conf:ro
     restart: unless-stopped
 
 volumes:

@@ -17,6 +17,7 @@ from app.domains.camera.application.usecase.network_usecase import (
     RegisterNetworkUseCase,
 )
 from app.domains.camera.application.usecase.register_camera_usecase import RegisterCameraUseCase
+from app.domains.camera.application.usecase.update_camera_usecase import FetchRtspUrlUseCase, UpdateCameraUseCase
 from app.infrastructure.config.settings import settings
 
 _in_memory_camera_repo = InMemoryCameraRepository()
@@ -69,6 +70,14 @@ def get_network_usecase(session: AsyncSession | None = Depends(_get_session)) ->
 
 def get_list_networks_usecase(session: AsyncSession | None = Depends(_get_session)) -> ListNetworksUseCase:
     return ListNetworksUseCase(_get_network_repo(session))
+
+
+def get_update_camera_usecase(session: AsyncSession | None = Depends(_get_session)) -> UpdateCameraUseCase:
+    return UpdateCameraUseCase(_get_camera_repo(session))
+
+
+def get_fetch_rtsp_url_usecase(session: AsyncSession | None = Depends(_get_session)) -> FetchRtspUrlUseCase:
+    return FetchRtspUrlUseCase(_get_camera_repo(session), _discovery_adapter)
 
 
 def get_discover_cameras_usecase() -> DiscoverCamerasUseCase:

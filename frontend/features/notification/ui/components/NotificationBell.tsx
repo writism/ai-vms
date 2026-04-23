@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Bell } from "lucide-react";
 import { useNotification } from "../../application/hooks/useNotification";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +16,7 @@ export function NotificationBell() {
         onClick={() => setOpen(!open)}
         className="relative rounded-md p-2 hover:bg-secondary"
       >
-        <span>🔔</span>
+        <Bell className="h-[18px] w-[18px] text-muted-foreground" />
         {unreadCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
             {unreadCount > 99 ? "99+" : unreadCount}

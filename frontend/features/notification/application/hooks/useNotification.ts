@@ -17,30 +17,51 @@ export function useNotification() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(`${env.wsUrl}/api/ws/notifications`);
-    wsRef.current = ws;
+    let ws: WebSocket | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let unmounted = false;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
+    function connect() {
+      if (unmounted) return;
+      ws = new WebSocket(`${env.wsUrl}/api/ws/notifications`);
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        const notification: Notification = {
-          id: crypto.randomUUID(),
-          type: msg.type,
-          data: msg.data,
-          timestamp: Date.now(),
-          read: false,
-        };
-        setNotifications((prev) => [notification, ...prev].slice(0, 100));
-      } catch {
-        // ignore malformed messages
-      }
-    };
+      ws.onopen = () => setConnected(true);
+
+      ws.onclose = () => {
+        setConnected(false);
+        if (!unmounted) {
+          timer = setTimeout(connect, 3000);
+        }
+      };
+
+      ws.onerror = () => {
+        ws?.close();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          const notification: Notification = {
+            id: crypto.randomUUID(),
+            type: msg.type,
+            data: msg.data,
+            timestamp: Date.now(),
+            read: false,
+          };
+          setNotifications((prev) => [notification, ...prev].slice(0, 100));
+        } catch {
+          // ignore malformed messages
+        }
+      };
+    }
+
+    connect();
 
     return () => {
-      ws.close();
+      unmounted = true;
+      if (timer) clearTimeout(timer);
+      ws?.close();
     };
   }, []);
 
