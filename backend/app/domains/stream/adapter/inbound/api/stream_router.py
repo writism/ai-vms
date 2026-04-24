@@ -3,11 +3,17 @@ from fastapi import APIRouter, Depends
 from app.domains.stream.adapter.inbound.api.dependencies import (
     get_list_streams_usecase,
     get_register_stream_usecase,
+    get_scan_media_servers_usecase,
     get_unregister_stream_usecase,
     get_webrtc_offer_usecase,
 )
-from app.domains.stream.application.request.stream_request import RegisterStreamRequest, WebRTCOfferRequest
+from app.domains.stream.application.request.stream_request import (
+    RegisterStreamRequest,
+    ScanMediaServersRequest,
+    WebRTCOfferRequest,
+)
 from app.domains.stream.application.response.stream_response import (
+    MediaServerScanResponse,
     StreamListResponse,
     StreamRegistrationResponse,
     WebRTCAnswerResponse,
@@ -15,6 +21,7 @@ from app.domains.stream.application.response.stream_response import (
 from app.domains.stream.application.usecase.stream_usecase import (
     ListStreamsUseCase,
     RegisterStreamUseCase,
+    ScanMediaServersUseCase,
     UnregisterStreamUseCase,
     WebRTCOfferUseCase,
 )
@@ -51,3 +58,11 @@ async def webrtc_offer(
     usecase: WebRTCOfferUseCase = Depends(get_webrtc_offer_usecase),
 ) -> WebRTCAnswerResponse:
     return await usecase.execute(request)
+
+
+@router.post("/media-servers/scan", response_model=MediaServerScanResponse)
+async def scan_media_servers(
+    request: ScanMediaServersRequest,
+    usecase: ScanMediaServersUseCase = Depends(get_scan_media_servers_usecase),
+) -> MediaServerScanResponse:
+    return await usecase.execute(request.subnet)

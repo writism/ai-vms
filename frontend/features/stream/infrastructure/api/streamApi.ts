@@ -1,4 +1,5 @@
 import { http } from "@/infrastructure/http/httpClient";
+import type { MediaServerScanResult } from "../../domain/model/mediaServer";
 
 export const streamApi = {
   register: (cameraId: string, rtspUrl: string) =>
@@ -7,6 +8,11 @@ export const streamApi = {
       rtsp_url: rtspUrl,
     }),
 
+  unregister: (streamName: string) =>
+    http.delete<{ stream_name: string; success: boolean }>(
+      `/api/streams/${encodeURIComponent(streamName)}`,
+    ),
+
   list: () =>
     http.get<{ streams: Record<string, unknown> }>("/api/streams"),
 
@@ -14,5 +20,10 @@ export const streamApi = {
     http.post<{ sdp_answer: string }>("/api/streams/webrtc", {
       stream_name: streamName,
       sdp_offer: sdpOffer,
+    }),
+
+  scanMediaServers: (subnet: string) =>
+    http.post<MediaServerScanResult>("/api/streams/media-servers/scan", {
+      subnet,
     }),
 };

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.domains.camera.adapter.inbound.api.dependencies import (
     get_batch_register_cameras_usecase,
     get_camera_usecase,
+    get_delete_camera_usecase,
     get_discover_cameras_usecase,
     get_fetch_rtsp_url_usecase,
     get_list_cameras_usecase,
@@ -19,6 +20,7 @@ from app.domains.camera.application.usecase.discover_cameras_usecase import (
     BatchRegisterCamerasUseCase,
     DiscoverCamerasUseCase,
 )
+from app.domains.camera.application.usecase.delete_camera_usecase import DeleteCameraUseCase
 from app.domains.camera.application.usecase.get_camera_usecase import GetCameraUseCase, ListCamerasUseCase
 from app.domains.camera.application.usecase.register_camera_usecase import RegisterCameraUseCase
 from app.domains.camera.application.usecase.update_camera_usecase import FetchRtspUrlUseCase, UpdateCameraUseCase
@@ -74,6 +76,14 @@ async def fetch_rtsp_url(
     if result is None:
         raise HTTPException(status_code=404, detail="Camera not found")
     return result
+
+
+@router.delete("/{camera_id}", status_code=204)
+async def delete_camera(
+    camera_id: UUID,
+    usecase: DeleteCameraUseCase = Depends(get_delete_camera_usecase),
+) -> None:
+    await usecase.execute(camera_id)
 
 
 @router.post("/discover", response_model=list[DiscoveredCameraResponse])

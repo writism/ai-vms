@@ -10,8 +10,13 @@ class DomainError(Exception):
 
 
 class NotFoundError(DomainError):
-    def __init__(self, entity: str, entity_id: str):
-        super().__init__(f"{entity} not found: {entity_id}", code="NOT_FOUND")
+    def __init__(self, message: str = "Not found"):
+        super().__init__(message, code="NOT_FOUND")
+
+
+class ConflictError(DomainError):
+    def __init__(self, message: str = "Conflict"):
+        super().__init__(message, code="CONFLICT")
 
 
 class AuthenticationError(DomainError):
@@ -40,6 +45,7 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         "AUTHENTICATION_ERROR": 401,
         "AUTHORIZATION_ERROR": 403,
         "VALIDATION_ERROR": 422,
+        "CONFLICT": 409,
         "EXTERNAL_SERVICE_ERROR": 502,
     }
     status_code = status_map.get(exc.code, 400)

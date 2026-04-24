@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
@@ -40,7 +40,7 @@ class DangerEvent:
     resolved_by: UUID | None = None
     resolved_at: datetime | None = None
     id: UUID = field(default_factory=uuid4)
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def acknowledge(self) -> None:
         self.status = EventStatus.ACKNOWLEDGED
@@ -48,9 +48,9 @@ class DangerEvent:
     def resolve(self, user_id: UUID) -> None:
         self.status = EventStatus.RESOLVED
         self.resolved_by = user_id
-        self.resolved_at = datetime.now()
+        self.resolved_at = datetime.now(UTC)
 
     def mark_false_alarm(self, user_id: UUID) -> None:
         self.status = EventStatus.FALSE_ALARM
         self.resolved_by = user_id
-        self.resolved_at = datetime.now()
+        self.resolved_at = datetime.now(UTC)

@@ -9,3 +9,7 @@ class RegisterStreamRequest(BaseModel):
 class WebRTCOfferRequest(BaseModel):
     stream_name: str
     sdp_offer: str
+
+
+class ScanMediaServersRequest(BaseModel):
+    subnet: str

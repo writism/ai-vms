@@ -31,6 +31,8 @@ export const cameraApi = {
   fetchRtspUrl: (id: string, data: { username: string; password: string }) =>
     http.post<Camera>(`/api/cameras/${id}/fetch-rtsp`, data),
 
+  delete: (id: string) => http.delete(`/api/cameras/${id}`),
+
   batchRegister: (data: {
     network_id?: string;
     cameras: {

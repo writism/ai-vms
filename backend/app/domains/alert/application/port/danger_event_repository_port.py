@@ -28,4 +28,5 @@ class DangerEventRepositoryPort(ABC):
         danger_type: str | None = None,
         severity: str | None = None,
         status: str | None = None,
+        camera_id: UUID | None = None,
     ) -> int: ...

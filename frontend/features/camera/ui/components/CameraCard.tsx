@@ -2,19 +2,8 @@
 
 import Link from "next/link";
 import type { Camera } from "../../domain/model/camera";
+import { cameraStatusColors, cameraStatusLabels } from "@/lib/constants/labels";
 import { cn } from "@/lib/utils";
-
-const statusColors = {
-  ONLINE: "bg-green-500",
-  OFFLINE: "bg-gray-400",
-  ERROR: "bg-red-500",
-} as const;
-
-const statusLabels = {
-  ONLINE: "온라인",
-  OFFLINE: "오프라인",
-  ERROR: "에러",
-} as const;
 
 export function CameraCard({ camera }: { camera: Camera }) {
   return (
@@ -26,10 +15,10 @@ export function CameraCard({ camera }: { camera: Camera }) {
         <h3 className="font-semibold">{camera.name}</h3>
         <div className="flex items-center gap-2">
           <span
-            className={cn("h-2 w-2 rounded-full", statusColors[camera.status])}
+            className={cn("h-2 w-2 rounded-full", cameraStatusColors[camera.status])}
           />
           <span className="text-xs text-muted-foreground">
-            {statusLabels[camera.status]}
+            {cameraStatusLabels[camera.status]}
           </span>
         </div>
       </div>

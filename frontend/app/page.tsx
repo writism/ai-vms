@@ -1,34 +1,9 @@
 "use client";
 
 import { useDashboardStats } from "@/features/dashboard/application/hooks/useDashboardStats";
+import { MediaServerSection } from "@/features/dashboard/ui/components/MediaServerSection";
+import { severityColors, dangerLabels, eventTypeLabels } from "@/lib/constants/labels";
 import { cn } from "@/lib/utils";
-
-const severityColors: Record<string, string> = {
-  LOW: "bg-blue-100 text-blue-800",
-  MEDIUM: "bg-yellow-100 text-yellow-800",
-  HIGH: "bg-orange-100 text-orange-800",
-  CRITICAL: "bg-red-100 text-red-800",
-};
-
-const dangerLabels: Record<string, string> = {
-  FIRE: "화재",
-  SMOKE: "연기",
-  VIOLENCE: "폭력",
-  FIGHT: "싸움",
-  WEAPON: "무기",
-  FALL: "쓰러짐",
-  INTRUSION: "침입",
-};
-
-const eventTypeLabels: Record<string, string> = {
-  FACE_RECOGNIZED: "얼굴 인식",
-  FACE_UNIDENTIFIED: "미식별 얼굴",
-  DANGER_DETECTED: "위험 감지",
-  CAMERA_ONLINE: "카메라 온라인",
-  CAMERA_OFFLINE: "카메라 오프라인",
-  ACCESS_GRANTED: "출입 허용",
-  ACCESS_DENIED: "출입 거부",
-};
 
 function StatCard({
   title,
@@ -174,6 +149,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Media Server Monitoring */}
+      <MediaServerSection />
     </div>
   );
 }

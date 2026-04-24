@@ -15,7 +15,7 @@ export function VideoPlayer({
   className?: string;
   autoPlay?: boolean;
 }) {
-  const { state, videoRef, connect, disconnect } = useWebRTC(streamName, rtspUrl);
+  const { state, videoRef, connect, disconnect } = useWebRTC(streamName);
 
   useEffect(() => {
     if (autoPlay) {
@@ -24,7 +24,8 @@ export function VideoPlayer({
     return () => {
       disconnect();
     };
-  }, [streamName, autoPlay, connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamName, autoPlay]);
 
   return (
     <div className={cn("relative overflow-hidden rounded-lg bg-black", className)}>

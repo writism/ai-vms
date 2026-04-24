@@ -41,6 +41,7 @@ class InMemoryDangerEventRepository(DangerEventRepositoryPort):
         danger_type: str | None = None,
         severity: str | None = None,
         status: str | None = None,
+        camera_id: UUID | None = None,
     ) -> int:
         result = list(self._store.values())
         if danger_type:
@@ -49,4 +50,6 @@ class InMemoryDangerEventRepository(DangerEventRepositoryPort):
             result = [e for e in result if e.severity.value == severity]
         if status:
             result = [e for e in result if e.status.value == status]
+        if camera_id:
+            result = [e for e in result if e.camera_id == camera_id]
         return len(result)

@@ -133,10 +133,9 @@ services:
 
   go2rtc:
     image: alexxit/go2rtc:latest
-    ports:
-      - "1984:1984"
-      - "8554:8554"
-      - "8555:8555"
+    network_mode: host
+    volumes:
+      - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml
     restart: unless-stopped
 
 volumes:

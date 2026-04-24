@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.domains.agent.domain.entity.agent_task import AgentTask, AgentTaskStatus
@@ -42,5 +42,5 @@ class RunAgentPipelineUseCase:
             task.status = AgentTaskStatus.FAILED
             task.error = str(e)
 
-        task.completed_at = datetime.now()
+        task.completed_at = datetime.now(UTC)
         return task

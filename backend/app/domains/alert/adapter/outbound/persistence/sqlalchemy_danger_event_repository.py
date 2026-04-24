@@ -51,6 +51,7 @@ class SqlAlchemyDangerEventRepository(DangerEventRepositoryPort):
         danger_type: str | None = None,
         severity: str | None = None,
         status: str | None = None,
+        camera_id: UUID | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(DangerEventORM)
         if danger_type:
@@ -59,5 +60,7 @@ class SqlAlchemyDangerEventRepository(DangerEventRepositoryPort):
             stmt = stmt.where(DangerEventORM.severity == severity)
         if status:
             stmt = stmt.where(DangerEventORM.status == status)
+        if camera_id:
+            stmt = stmt.where(DangerEventORM.camera_id == camera_id)
         result = await self._session.execute(stmt)
         return result.scalar_one()

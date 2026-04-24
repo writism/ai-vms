@@ -1,12 +1,14 @@
 "use client";
 
 import { use, useState } from "react";
-import useSWR from "swr";
+import { useRouter } from "next/navigation";
+import useSWR, { useSWRConfig } from "swr";
 import Link from "next/link";
 import type { Camera } from "@/features/camera/domain/model/camera";
 import { VideoPlayer } from "@/features/stream/ui/components/VideoPlayer";
 import { cameraApi } from "@/features/camera/infrastructure/api/cameraApi";
 import { Button } from "@/components/ui/button";
+import { cameraStatusColors, cameraStatusLabels } from "@/lib/constants/labels";
 import { env } from "@/infrastructure/config/env";
 
 interface HealthResponse {
@@ -15,18 +17,6 @@ interface HealthResponse {
     yolo: boolean;
   };
 }
-
-const statusColors: Record<string, string> = {
-  ONLINE: "bg-green-500",
-  OFFLINE: "bg-gray-400",
-  ERROR: "bg-red-500",
-};
-
-const statusLabels: Record<string, string> = {
-  ONLINE: "온라인",
-  OFFLINE: "오프라인",
-  ERROR: "오류",
-};
 
 export default function CameraDetailPage({
   params,
@@ -41,11 +31,16 @@ export default function CameraDetailPage({
   const [editRtspUrl, setEditRtspUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const router = useRouter();
+  const { mutate: globalMutate } = useSWRConfig();
   const [onvifUser, setOnvifUser] = useState("admin");
   const [onvifPass, setOnvifPass] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -104,6 +99,23 @@ export default function CameraDetailPage({
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await cameraApi.delete(id);
+      await globalMutate("/api/cameras");
+      router.push("/cameras");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "삭제에 실패했습니다";
+      const match = msg.match(/"message"\s*:\s*"([^"]+)"/);
+      setDeleteError(match ? match[1] : msg);
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -115,15 +127,60 @@ export default function CameraDetailPage({
         </Link>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div
-          className={`h-3 w-3 rounded-full ${statusColors[camera.status]}`}
-        />
-        <h2 className="text-2xl font-semibold">{camera.name}</h2>
-        <span className="text-sm text-muted-foreground">
-          {statusLabels[camera.status]}
-        </span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div
+            className={`h-3 w-3 rounded-full ${cameraStatusColors[camera.status]}`}
+          />
+          <h2 className="text-2xl font-semibold">{camera.name}</h2>
+          <span className="text-sm text-muted-foreground">
+            {cameraStatusLabels[camera.status]}
+          </span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950"
+          onClick={() => { setDeleteError(null); setShowDeleteConfirm(true); }}
+        >
+          삭제
+        </Button>
       </div>
+
+      {deleteError && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+          {deleteError}
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-sm rounded-lg border bg-card p-6 shadow-lg">
+            <h3 className="text-lg font-semibold">카메라 삭제</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              <strong>{camera.name}</strong> 카메라를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                취소
+              </Button>
+              <Button
+                size="sm"
+                className="bg-red-600 text-white hover:bg-red-700"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "삭제 중..." : "삭제"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black">
         {camera.rtsp_url ? (

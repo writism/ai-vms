@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     action_recognition_enabled: bool = True
     pose_model: str = "mediapipe"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ("../.env", ".env"), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

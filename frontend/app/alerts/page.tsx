@@ -1,31 +1,8 @@
 "use client";
 
 import { useAlerts } from "@/features/alert/application/hooks/useAlerts";
+import { severityColors, dangerLabels, dangerEventStatusLabels } from "@/lib/constants/labels";
 import { cn } from "@/lib/utils";
-
-const severityColors: Record<string, string> = {
-  LOW: "bg-blue-100 text-blue-800",
-  MEDIUM: "bg-yellow-100 text-yellow-800",
-  HIGH: "bg-orange-100 text-orange-800",
-  CRITICAL: "bg-red-100 text-red-800",
-};
-
-const statusLabels: Record<string, string> = {
-  PENDING: "대기",
-  ACKNOWLEDGED: "확인됨",
-  RESOLVED: "처리완료",
-  FALSE_ALARM: "오탐",
-};
-
-const dangerLabels: Record<string, string> = {
-  FIRE: "화재",
-  SMOKE: "연기",
-  VIOLENCE: "폭력",
-  FIGHT: "싸움",
-  WEAPON: "무기",
-  FALL: "쓰러짐",
-  INTRUSION: "침입",
-};
 
 export default function AlertsPage() {
   const { events, total, isLoading } = useAlerts();
@@ -73,7 +50,7 @@ export default function AlertsPage() {
                 </div>
               </div>
               <span className="text-sm text-muted-foreground">
-                {statusLabels[event.status] ?? event.status}
+                {dangerEventStatusLabels[event.status] ?? event.status}
               </span>
             </div>
           ))

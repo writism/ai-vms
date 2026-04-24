@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from urllib.parse import quote, urlparse, urlunparse
 from uuid import UUID
 
@@ -6,6 +6,15 @@ from app.domains.camera.application.port.camera_repository_port import CameraRep
 from app.domains.camera.application.port.discovery_port import CameraDiscoveryPort
 from app.domains.camera.application.request.camera_request import FetchRtspUrlRequest, UpdateCameraRequest
 from app.domains.camera.application.response.camera_response import CameraResponse
+
+
+_TCP_TRANSPORT_MANUFACTURERS = {"tp-link", "tapo"}
+
+
+def _needs_tcp_transport(manufacturer: str | None) -> bool:
+    if not manufacturer:
+        return False
+    return manufacturer.lower() in _TCP_TRANSPORT_MANUFACTURERS
 
 
 def _inject_credentials(rtsp_url: str, username: str, password: str) -> str:
@@ -34,7 +43,7 @@ class UpdateCameraUseCase:
             camera.manufacturer = request.manufacturer
         if request.model is not None:
             camera.model = request.model
-        camera.updated_at = datetime.now()
+        camera.updated_at = datetime.now(UTC)
         updated = await self._repo.update(camera)
         return CameraResponse.from_entity(updated)
 
@@ -57,11 +66,13 @@ class FetchRtspUrlUseCase:
         rtsp_url = detail.rtsp_url
         if rtsp_url and request.username and request.password:
             rtsp_url = _inject_credentials(rtsp_url, request.username, request.password)
+        if rtsp_url and _needs_tcp_transport(detail.manufacturer):
+            rtsp_url += "#tcp"
         camera.rtsp_url = rtsp_url
         if detail.manufacturer:
             camera.manufacturer = detail.manufacturer
         if detail.model:
             camera.model = detail.model
-        camera.updated_at = datetime.now()
+        camera.updated_at = datetime.now(UTC)
         updated = await self._repo.update(camera)
         return CameraResponse.from_entity(updated)

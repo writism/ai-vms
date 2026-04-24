@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from app.infrastructure.config.settings import settings
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CapturedFrame:
     camera_id: str
     frame: np.ndarray
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class FrameCaptureService:

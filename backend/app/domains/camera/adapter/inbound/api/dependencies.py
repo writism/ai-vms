@@ -16,6 +16,7 @@ from app.domains.camera.application.usecase.network_usecase import (
     ListNetworksUseCase,
     RegisterNetworkUseCase,
 )
+from app.domains.camera.application.usecase.delete_camera_usecase import DeleteCameraUseCase
 from app.domains.camera.application.usecase.register_camera_usecase import RegisterCameraUseCase
 from app.domains.camera.application.usecase.update_camera_usecase import FetchRtspUrlUseCase, UpdateCameraUseCase
 from app.infrastructure.config.settings import settings
@@ -86,3 +87,25 @@ def get_discover_cameras_usecase() -> DiscoverCamerasUseCase:
 
 def get_batch_register_cameras_usecase(session: AsyncSession | None = Depends(_get_session)) -> BatchRegisterCamerasUseCase:
     return BatchRegisterCamerasUseCase(_get_camera_repo(session))
+
+
+def get_delete_camera_usecase(session: AsyncSession | None = Depends(_get_session)) -> DeleteCameraUseCase:
+    from app.domains.alert.adapter.outbound.persistence.in_memory_danger_event_repository import InMemoryDangerEventRepository
+    from app.domains.event.adapter.outbound.persistence.in_memory_event_repository import InMemoryEventRepository
+    from app.domains.stream.adapter.outbound.external.go2rtc_stream_adapter import Go2RtcStreamAdapter
+
+    if settings.use_database and session:
+        from app.domains.alert.adapter.outbound.persistence.sqlalchemy_danger_event_repository import SqlAlchemyDangerEventRepository
+        from app.domains.event.adapter.outbound.persistence.sqlalchemy_event_repository import SqlAlchemyEventRepository
+        danger_repo = SqlAlchemyDangerEventRepository(session)
+        event_repo = SqlAlchemyEventRepository(session)
+    else:
+        danger_repo = InMemoryDangerEventRepository()
+        event_repo = InMemoryEventRepository()
+
+    return DeleteCameraUseCase(
+        camera_repo=_get_camera_repo(session),
+        danger_event_repo=danger_repo,
+        event_repo=event_repo,
+        stream_port=Go2RtcStreamAdapter(),
+    )

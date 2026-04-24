@@ -2,25 +2,32 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { env } from "@/infrastructure/config/env";
-import { streamApi } from "../../infrastructure/api/streamApi";
 
 export type WebRTCState = "idle" | "connecting" | "connected" | "failed";
 
-export function useWebRTC(streamName: string | null, rtspUrl?: string | null) {
+export function useWebRTC(streamName: string | null) {
   const [state, setState] = useState<WebRTCState>("idle");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
 
+  const cleanup = useCallback(() => {
+    const pc = pcRef.current;
+    if (pc) {
+      pc.ontrack = null;
+      pc.onconnectionstatechange = null;
+      pc.close();
+      pcRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
+
   const connect = useCallback(async () => {
     if (!streamName) return;
 
+    cleanup();
     setState("connecting");
 
     try {
-      if (rtspUrl) {
-        await streamApi.register(streamName, rtspUrl);
-      }
-
       const stunUrl = env.turnUrl.replace(/^turn:/, "stun:");
       const pc = new RTCPeerConnection({
         iceServers: [
@@ -31,6 +38,7 @@ export function useWebRTC(streamName: string | null, rtspUrl?: string | null) {
             credential: env.turnPass,
           },
         ],
+        iceCandidatePoolSize: 4,
       });
       pcRef.current = pc;
 
@@ -44,8 +52,9 @@ export function useWebRTC(streamName: string | null, rtspUrl?: string | null) {
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === "connected") setState("connected");
-        if (pc.connectionState === "failed") setState("failed");
+        const s = pc.connectionState;
+        if (s === "connected") setState("connected");
+        if (s === "failed" || s === "disconnected") setState("failed");
       };
 
       const offer = await pc.createOffer();
@@ -72,20 +81,16 @@ export function useWebRTC(streamName: string | null, rtspUrl?: string | null) {
     } catch {
       setState("failed");
     }
-  }, [streamName, rtspUrl]);
+  }, [streamName, cleanup]);
 
   const disconnect = useCallback(() => {
-    pcRef.current?.close();
-    pcRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
+    cleanup();
     setState("idle");
-  }, []);
+  }, [cleanup]);
 
   useEffect(() => {
-    return () => {
-      pcRef.current?.close();
-    };
-  }, []);
+    return cleanup;
+  }, [cleanup]);
 
   return { state, videoRef, connect, disconnect };
 }
