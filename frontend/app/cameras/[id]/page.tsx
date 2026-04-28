@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import Link from "next/link";
@@ -30,6 +30,8 @@ export default function CameraDetailPage({
   const [editName, setEditName] = useState("");
   const [editRtspUrl, setEditRtspUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const rtspInputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
   const { mutate: globalMutate } = useSWRConfig();
@@ -38,9 +40,20 @@ export default function CameraDetailPage({
   const [showPass, setShowPass] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchWarning, setFetchWarning] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editing) rtspInputRef.current?.focus();
+  }, [editing]);
+
+  const editRtspTrimmed = editRtspUrl.trim();
+  const editRtspValid =
+    editRtspTrimmed === "" ||
+    editRtspTrimmed.startsWith("rtsp://") ||
+    editRtspTrimmed.startsWith("rtsps://");
 
   if (isLoading) {
     return (
@@ -61,18 +74,35 @@ export default function CameraDetailPage({
   const startEdit = () => {
     setEditName(camera.name);
     setEditRtspUrl(camera.rtsp_url ?? "");
+    setEditError(null);
     setEditing(true);
   };
 
+  const extractApiMessage = (raw: string): string => {
+    const msgMatch = raw.match(/"msg"\s*:\s*"([^"]+)"/);
+    if (msgMatch) return msgMatch[1];
+    const messageMatch = raw.match(/"message"\s*:\s*"([^"]+)"/);
+    if (messageMatch) return messageMatch[1];
+    return raw;
+  };
+
   const handleSave = async () => {
+    if (!editRtspValid) {
+      setEditError("RTSP URL은 rtsp:// 또는 rtsps://로 시작해야 합니다");
+      return;
+    }
     setSaving(true);
+    setEditError(null);
     try {
       await cameraApi.update(id, {
         name: editName || undefined,
-        rtsp_url: editRtspUrl || undefined,
+        rtsp_url: editRtspTrimmed || undefined,
       });
       await mutate();
       setEditing(false);
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : "저장에 실패했습니다";
+      setEditError(extractApiMessage(raw));
     } finally {
       setSaving(false);
     }
@@ -82,14 +112,23 @@ export default function CameraDetailPage({
     if (!onvifUser || !onvifPass) return;
     setFetching(true);
     setFetchError(null);
+    setFetchWarning(null);
     try {
-      await cameraApi.fetchRtspUrl(id, {
+      const updated = await cameraApi.fetchRtspUrl(id, {
         username: onvifUser,
         password: onvifPass,
       });
       await mutate();
-      setOnvifUser("");
-      setOnvifPass("");
+      if (!updated.rtsp_url) {
+        setFetchWarning("ONVIF로 RTSP URL을 받지 못했습니다 — 편집에서 직접 입력하세요");
+        setEditName(updated.name);
+        setEditRtspUrl("");
+        setEditError(null);
+        setEditing(true);
+      } else {
+        setOnvifUser("");
+        setOnvifPass("");
+      }
     } catch (e) {
       setFetchError(
         e instanceof Error ? e.message : "RTSP URL 조회에 실패했습니다",
@@ -186,8 +225,11 @@ export default function CameraDetailPage({
         {camera.rtsp_url ? (
           <VideoPlayer streamName={camera.id} rtspUrl={camera.rtsp_url} />
         ) : (
-          <div className="flex h-full items-center justify-center text-white/50">
-            RTSP URL 미설정
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-white/70">
+            <p className="text-sm font-medium">RTSP URL 미설정</p>
+            <p className="text-xs text-white/50">
+              ONVIF로 RTSP를 받지 못했습니다 — 편집에서 직접 입력하세요
+            </p>
           </div>
         )}
       </div>
@@ -202,6 +244,20 @@ export default function CameraDetailPage({
               </Button>
             )}
           </div>
+
+          {!editing && !camera.rtsp_url && (
+            <div className="mb-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              ONVIF로 RTSP를 받지 못했습니다.{" "}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2"
+                onClick={startEdit}
+              >
+                편집
+              </button>
+              에서 직접 입력하세요.
+            </div>
+          )}
 
           {editing ? (
             <div className="space-y-3">
@@ -219,21 +275,45 @@ export default function CameraDetailPage({
                   RTSP URL
                 </label>
                 <input
+                  ref={rtspInputRef}
                   type="text"
                   value={editRtspUrl}
-                  onChange={(e) => setEditRtspUrl(e.target.value)}
-                  placeholder="rtsp://..."
-                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-xs"
+                  onChange={(e) => {
+                    setEditRtspUrl(e.target.value);
+                    setEditError(null);
+                  }}
+                  placeholder="rtsp://USER:PASS@HOST:PORT/path[#tcp]"
+                  className={`mt-1 w-full rounded-md border bg-background px-3 py-2 font-mono text-xs ${
+                    !editRtspValid ? "border-red-400" : ""
+                  }`}
                 />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  형식: <span className="font-mono">rtsp://USER:PASS@HOST:PORT/path[#tcp]</span>
+                </p>
+                {!editRtspValid && (
+                  <p className="mt-1 text-xs text-red-500">
+                    rtsp:// 또는 rtsps://로 시작해야 합니다
+                  </p>
+                )}
+                {editError && (
+                  <p className="mt-1 text-xs text-red-500">{editError}</p>
+                )}
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSave} disabled={saving}>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving || !editRtspValid}
+                >
                   {saving ? "저장 중..." : "저장"}
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setEditing(false);
+                    setEditError(null);
+                  }}
                 >
                   취소
                 </Button>
@@ -326,6 +406,11 @@ export default function CameraDetailPage({
               </Button>
               {fetchError && (
                 <p className="text-xs text-red-500">{fetchError}</p>
+              )}
+              {fetchWarning && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {fetchWarning}
+                </p>
               )}
               <p className="text-xs text-muted-foreground">
                 ONVIF를 통해 카메라에서 RTSP URL을 자동으로 가져옵니다
