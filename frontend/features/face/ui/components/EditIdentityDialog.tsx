@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import type { Identity } from "../../domain/model/face";
 import { faceApi } from "../../infrastructure/api/faceApi";
 import { env } from "@/infrastructure/config/env";
+import { humanizeMediaError } from "../lib/media-error";
 
 export function EditIdentityDialog({
   identity,
@@ -52,10 +53,7 @@ export function EditIdentityDialog({
       streamRef.current = stream;
       setWebcamActive(true);
     } catch (e) {
-      const msg = e instanceof DOMException && e.name === "NotAllowedError"
-        ? "카메라 권한이 거부되었습니다"
-        : "카메라에 접근할 수 없습니다 (HTTPS 필요)";
-      setWebcamError(msg);
+      setWebcamError(humanizeMediaError(e));
     }
   };
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { faceApi } from "../../infrastructure/api/faceApi";
+import { humanizeMediaError } from "../lib/media-error";
 
 export function RegisterIdentityDialog({
   open,
@@ -24,6 +25,9 @@ export function RegisterIdentityDialog({
   const [webcamActive, setWebcamActive] = useState(false);
   const [webcamError, setWebcamError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [createdIdentityId, setCreatedIdentityId] = useState<string | null>(null);
+  const [embeddingWarning, setEmbeddingWarning] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -48,10 +52,7 @@ export function RegisterIdentityDialog({
       streamRef.current = stream;
       setWebcamActive(true);
     } catch (e) {
-      const msg = e instanceof DOMException && e.name === "NotAllowedError"
-        ? "카메라 권한이 거부되었습니다"
-        : "카메라에 접근할 수 없습니다 (HTTPS 필요)";
-      setWebcamError(msg);
+      setWebcamError(humanizeMediaError(e));
     }
   };
 
@@ -75,6 +76,8 @@ export function RegisterIdentityDialog({
         const file = new File([blob], "webcam-capture.jpg", { type: "image/jpeg" });
         setPhotoFile(file);
         setPhotoPreview(dataUrl);
+        setEmbeddingWarning(null);
+        setUploadError(null);
         stopWebcam();
       });
   };
@@ -84,6 +87,8 @@ export function RegisterIdentityDialog({
     if (!file) return;
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
+    setEmbeddingWarning(null);
+    setUploadError(null);
     stopWebcam();
   };
 
@@ -92,17 +97,37 @@ export function RegisterIdentityDialog({
   const handleSubmit = async () => {
     if (!name.trim()) return;
     setSubmitting(true);
+    setUploadError(null);
+    setEmbeddingWarning(null);
     try {
-      const identity = await faceApi.registerIdentity({
-        name: name.trim(),
-        identity_type: type,
-        department: type === "EMPLOYEE" ? department || undefined : undefined,
-        employee_id: type === "EMPLOYEE" ? employeeId || undefined : undefined,
-        company: type === "VISITOR" ? company || undefined : undefined,
-        visit_purpose: type === "VISITOR" ? visitPurpose || undefined : undefined,
-      });
-      if (photoFile && identity?.id) {
-        await faceApi.uploadFacePhoto(identity.id, photoFile);
+      let identityId = createdIdentityId;
+      if (!identityId) {
+        const identity = await faceApi.registerIdentity({
+          name: name.trim(),
+          identity_type: type,
+          department: type === "EMPLOYEE" ? department || undefined : undefined,
+          employee_id: type === "EMPLOYEE" ? employeeId || undefined : undefined,
+          company: type === "VISITOR" ? company || undefined : undefined,
+          visit_purpose: type === "VISITOR" ? visitPurpose || undefined : undefined,
+        });
+        identityId = identity.id;
+        setCreatedIdentityId(identityId);
+      }
+      if (photoFile) {
+        try {
+          const result = await faceApi.uploadFacePhoto(identityId, photoFile);
+          if (!result.has_embedding) {
+            setEmbeddingWarning(
+              "얼굴이 검출되지 않았습니다. 정면이 선명하게 보이는 다른 사진으로 다시 시도하세요.",
+            );
+            onRegistered();
+            return;
+          }
+        } catch (e) {
+          setUploadError(e instanceof Error ? e.message : "사진 업로드에 실패했습니다");
+          onRegistered();
+          return;
+        }
       }
       onRegistered();
       handleClose();
@@ -120,6 +145,10 @@ export function RegisterIdentityDialog({
     setVisitPurpose("");
     setPhotoFile(null);
     setPhotoPreview(null);
+    setCreatedIdentityId(null);
+    setEmbeddingWarning(null);
+    setUploadError(null);
+    setWebcamError(null);
     stopWebcam();
     onClose();
   };
@@ -129,6 +158,13 @@ export function RegisterIdentityDialog({
       handleClose();
     }
   };
+
+  const identityLocked = createdIdentityId !== null;
+  const submitLabel = submitting
+    ? "등록 중..."
+    : identityLocked
+      ? "사진 다시 시도"
+      : "등록";
 
   return (
     <div
@@ -141,6 +177,12 @@ export function RegisterIdentityDialog({
       >
         <h2 className="text-lg font-semibold">인물 등록</h2>
 
+        {identityLocked && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            인물 정보는 이미 등록되었습니다. 사진만 다시 선택하면 검출을 재시도합니다.
+          </p>
+        )}
+
         <div className="mt-4 space-y-3">
           <div>
             <label className="text-sm font-medium">이름 *</label>
@@ -148,7 +190,8 @@ export function RegisterIdentityDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              disabled={identityLocked}
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
               placeholder="홍길동"
             />
           </div>
@@ -157,7 +200,8 @@ export function RegisterIdentityDialog({
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              disabled={identityLocked}
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
             >
               <option value="EMPLOYEE">임직원</option>
               <option value="VISITOR">방문객</option>
@@ -172,7 +216,8 @@ export function RegisterIdentityDialog({
                   type="text"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={identityLocked}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
                 />
               </div>
               <div>
@@ -181,7 +226,8 @@ export function RegisterIdentityDialog({
                   type="text"
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={identityLocked}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
                 />
               </div>
             </>
@@ -195,7 +241,8 @@ export function RegisterIdentityDialog({
                   type="text"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={identityLocked}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
                 />
               </div>
               <div>
@@ -204,7 +251,8 @@ export function RegisterIdentityDialog({
                   type="text"
                   value={visitPurpose}
                   onChange={(e) => setVisitPurpose(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={identityLocked}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
                 />
               </div>
             </>
@@ -241,7 +289,12 @@ export function RegisterIdentityDialog({
                   <img src={photoPreview} alt="미리보기" className="w-full rounded-md border border-border" />
                   <button
                     type="button"
-                    onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
+                    onClick={() => {
+                      setPhotoFile(null);
+                      setPhotoPreview(null);
+                      setEmbeddingWarning(null);
+                      setUploadError(null);
+                    }}
                     className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white hover:bg-black/80"
                   >
                     삭제
@@ -249,29 +302,37 @@ export function RegisterIdentityDialog({
                 </div>
               ) : (
                 <div className="space-y-2">
-                {webcamError && (
-                  <p className="text-xs text-red-400">{webcamError}</p>
-                )}
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={startWebcam}
-                    className="flex-1"
-                  >
-                    웹캠 촬영
-                  </Button>
-                  <label className="flex flex-1 cursor-pointer items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-muted">
-                    사진 업로드
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                  </label>
+                  {webcamError && (
+                    <p className="text-xs text-red-400">{webcamError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={startWebcam}
+                      className="flex-1"
+                    >
+                      웹캠 촬영
+                    </Button>
+                    <label className="flex flex-1 cursor-pointer items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-muted">
+                      사진 업로드
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 </div>
-              </div>
+              )}
+              {embeddingWarning && (
+                <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  {embeddingWarning}
+                </p>
+              )}
+              {uploadError && (
+                <p className="text-xs text-red-500">{uploadError}</p>
               )}
             </div>
           </div>
@@ -279,10 +340,13 @@ export function RegisterIdentityDialog({
 
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="outline" onClick={handleClose}>
-            취소
+            {identityLocked ? "닫기" : "취소"}
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting || !name.trim()}>
-            {submitting ? "등록 중..." : "등록"}
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting || !name.trim() || (identityLocked && !photoFile)}
+          >
+            {submitLabel}
           </Button>
         </div>
       </div>

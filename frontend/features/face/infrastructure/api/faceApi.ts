@@ -2,6 +2,12 @@ import { http } from "@/infrastructure/http/httpClient";
 import { env } from "@/infrastructure/config/env";
 import type { Identity, RecognitionLog } from "../../domain/model/face";
 
+export interface UploadFacePhotoResponse {
+  status: string;
+  image_path: string;
+  has_embedding: boolean;
+}
+
 export const faceApi = {
   listIdentities: () => http.get<Identity[]>("/api/faces/identities"),
 
@@ -32,7 +38,7 @@ export const faceApi = {
   listRecognitionLogs: (limit = 20) =>
     http.get<RecognitionLog[]>(`/api/faces/recognition-logs`, { params: { limit: String(limit) } }),
 
-  uploadFacePhoto: async (identityId: string, file: File) => {
+  uploadFacePhoto: async (identityId: string, file: File): Promise<UploadFacePhotoResponse> => {
     const formData = new FormData();
     formData.append("file", file);
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -43,7 +49,10 @@ export const faceApi = {
       headers,
       body: formData,
     });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${body}`);
+    }
     return res.json();
   },
 };
