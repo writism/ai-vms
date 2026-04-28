@@ -1,0 +1,18 @@
+api:
+  listen: ":1984"
+  origin: "*"
+
+rtsp:
+  listen: ":8554"
+
+webrtc:
+  listen: ":8555"
+  candidates:
+    # WebRTC ICE candidates. 호스트 LAN IP를 채워 넣고 STUN을 함께 사용한다.
+    # 예: 192.168.0.42:8555
+    - stun:8555
+
+# streams 섹션은 비워 둔다.
+# AI-VMS backend가 startup 시 DB에 등록된 카메라를 PUT /api/streams로
+# 자동 등록하며, 카메라 등록·RTSP 갱신 시점에도 동기화한다.
+streams: {}

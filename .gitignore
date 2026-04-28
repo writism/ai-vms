@@ -32,6 +32,10 @@ docker/postgres_data/
 docker/redis_data/
 docker/certs/
 
+# go2rtc 운영 데이터 (PUT /api/streams 호출이 자동으로 yaml에 영구 저장 →
+# 환경별 IP/RTSP credential이 들어감). go2rtc.example.yaml 템플릿을 복사해 사용.
+docker/go2rtc/go2rtc.yaml
+
 # Models
 models/*.pt
 models/*.onnx
