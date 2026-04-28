@@ -56,11 +56,11 @@ def get_register_camera_usecase(session: AsyncSession | None = Depends(_get_sess
 
 
 def get_camera_usecase(session: AsyncSession | None = Depends(_get_session)) -> GetCameraUseCase:
-    return GetCameraUseCase(_get_camera_repo(session))
+    return GetCameraUseCase(_get_camera_repo(session), stream_port=_stream_adapter)
 
 
 def get_list_cameras_usecase(session: AsyncSession | None = Depends(_get_session)) -> ListCamerasUseCase:
-    return ListCamerasUseCase(_get_camera_repo(session))
+    return ListCamerasUseCase(_get_camera_repo(session), stream_port=_stream_adapter)
 
 
 def get_register_network_usecase(session: AsyncSession | None = Depends(_get_session)) -> RegisterNetworkUseCase:

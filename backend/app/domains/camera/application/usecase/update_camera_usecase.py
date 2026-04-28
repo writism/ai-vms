@@ -7,6 +7,7 @@ from app.domains.camera.application.port.camera_repository_port import CameraRep
 from app.domains.camera.application.port.discovery_port import CameraDiscoveryPort
 from app.domains.camera.application.request.camera_request import FetchRtspUrlRequest, UpdateCameraRequest
 from app.domains.camera.application.response.camera_response import CameraResponse
+from app.domains.camera.application.service.camera_status_resolver import resolve_status
 from app.domains.camera.domain.entity.camera import Camera
 from app.domains.stream.application.port.stream_port import StreamPort
 
@@ -64,6 +65,7 @@ class UpdateCameraUseCase:
         updated = await self._repo.update(camera)
         if rtsp_changed:
             await _sync_stream(self._stream_port, updated)
+        updated.status = await resolve_status(updated, self._stream_port)
         return CameraResponse.from_entity(updated)
 
 
@@ -101,4 +103,5 @@ class FetchRtspUrlUseCase:
         camera.updated_at = datetime.now(UTC)
         updated = await self._repo.update(camera)
         await _sync_stream(self._stream_port, updated)
+        updated.status = await resolve_status(updated, self._stream_port)
         return CameraResponse.from_entity(updated)

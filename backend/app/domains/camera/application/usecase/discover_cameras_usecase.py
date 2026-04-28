@@ -5,6 +5,10 @@ from app.domains.camera.application.port.discovery_port import CameraDiscoveryPo
 from app.domains.camera.application.request.discovery_request import BatchRegisterCamerasRequest, DiscoverCamerasRequest
 from app.domains.camera.application.response.camera_response import CameraResponse
 from app.domains.camera.application.response.discovery_response import DiscoveredCameraResponse
+from app.domains.camera.application.service.camera_status_resolver import (
+    fetch_registered_stream_names,
+    resolve_status,
+)
 from app.domains.camera.domain.entity.camera import Camera
 from app.domains.stream.application.port.stream_port import StreamPort
 
@@ -36,7 +40,7 @@ class BatchRegisterCamerasUseCase:
         self._stream_port = stream_port
 
     async def execute(self, request: BatchRegisterCamerasRequest) -> list[CameraResponse]:
-        results: list[CameraResponse] = []
+        saved_cameras: list[Camera] = []
         for item in request.cameras:
             camera = Camera(
                 name=item.name,
@@ -53,5 +57,9 @@ class BatchRegisterCamerasUseCase:
                     await self._stream_port.register_stream(str(saved.id), saved.rtsp_url)
                 except Exception as exc:
                     logger.warning("go2rtc register_stream failed for %s: %s", saved.id, exc)
-            results.append(CameraResponse.from_entity(saved))
-        return results
+            saved_cameras.append(saved)
+
+        registered = await fetch_registered_stream_names(self._stream_port)
+        for cam in saved_cameras:
+            cam.status = await resolve_status(cam, self._stream_port, registered)
+        return [CameraResponse.from_entity(c) for c in saved_cameras]

@@ -3,6 +3,7 @@ import logging
 from app.domains.camera.application.port.camera_repository_port import CameraRepositoryPort
 from app.domains.camera.application.request.camera_request import RegisterCameraRequest
 from app.domains.camera.application.response.camera_response import CameraResponse
+from app.domains.camera.application.service.camera_status_resolver import resolve_status
 from app.domains.camera.domain.entity.camera import Camera
 from app.domains.stream.application.port.stream_port import StreamPort
 
@@ -28,4 +29,5 @@ class RegisterCameraUseCase:
                 await self._stream_port.register_stream(str(saved.id), saved.rtsp_url)
             except Exception as exc:
                 logger.warning("go2rtc register_stream failed for %s: %s", saved.id, exc)
+        saved.status = await resolve_status(saved, self._stream_port)
         return CameraResponse.from_entity(saved)
