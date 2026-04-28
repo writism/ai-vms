@@ -39,6 +39,7 @@ def _detect_gpu() -> tuple[bool, str]:
         conv = helper.make_node("Conv", ["X", "W"], ["Y"])
         graph = helper.make_graph([conv], "gpu_test", [X], [Y], [W])
         model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
+        model.ir_version = 10
 
         sess = ort.InferenceSession(
             model.SerializeToString(),

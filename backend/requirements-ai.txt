@@ -1,12 +1,17 @@
 # AI / ML Dependencies (GPU 환경에서 설치)
+# 호스트 NVIDIA 드라이버 535.x는 CUDA 12까지 지원 → CUDA 12.4 호환 wheel로 고정
 -r requirements.txt
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+torch==2.5.1+cu124
+torchvision==0.20.1+cu124
+onnxruntime-gpu==1.20.1
 
 insightface>=0.7.3
-onnxruntime-gpu>=1.19.0
-ultralytics>=8.3.0
+ultralytics>=8.3.0,<8.4
 mediapipe>=0.10.0
 opencv-python-headless>=4.10.0
-numpy>=1.26.0
+numpy>=1.26.0,<2.0
 scikit-learn>=1.5.0
 langgraph>=0.2.0
 langchain-openai>=0.2.0
