@@ -30,10 +30,14 @@ Thumbs.db
 # Docker
 docker/postgres_data/
 docker/redis_data/
+docker/certs/
 
 # Models
 models/*.pt
 models/*.onnx
+
+# Uploads
+backend/uploads/
 
 # Logs
 *.log
