@@ -3,13 +3,13 @@ from uuid import UUID
 
 from app.domains.alert.application.port.alert_rule_repository_port import AlertRuleRepositoryPort
 from app.domains.alert.application.port.danger_event_repository_port import DangerEventRepositoryPort
-from app.domains.alert.application.response.alert_response import DangerEventResponse
 from app.domains.alert.domain.entity.danger_event import DangerEvent, DangerType, Severity
 from app.domains.face.application.port.face_embedding_port import FaceEmbeddingPort
 from app.domains.face.application.port.identity_repository_port import IdentityRepositoryPort
 from app.domains.face.application.port.recognition_log_port import RecognitionLogPort
 from app.domains.face.application.response.face_response import RecognitionLogResponse
 from app.domains.face.domain.entity.recognition_log import RecognitionLog
+from app.infrastructure.event_bus.notification_dispatcher import NotificationDispatcher
 from app.infrastructure.event_bus.ws_manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -23,12 +23,14 @@ class CreateRecognitionLogUseCase:
         embedding_store: FaceEmbeddingPort,
         alert_rule_repo: AlertRuleRepositoryPort | None = None,
         danger_event_repo: DangerEventRepositoryPort | None = None,
+        dispatcher: NotificationDispatcher | None = None,
     ):
         self._log_repo = log_repo
         self._identity_repo = identity_repo
         self._embedding_store = embedding_store
         self._alert_rule_repo = alert_rule_repo
         self._danger_event_repo = danger_event_repo
+        self._dispatcher = dispatcher
 
     async def execute(self, camera_id: UUID, embedding: list[float], threshold: float = 0.55) -> RecognitionLogResponse:
         results = await self._embedding_store.search(embedding=embedding, limit=1, threshold=threshold)
@@ -109,11 +111,10 @@ class CreateRecognitionLogUseCase:
             )
             saved_event = await self._danger_event_repo.save(event)
 
-            event_response = DangerEventResponse.from_entity(saved_event)
-            await ws_manager.broadcast({
-                "type": "DANGER_EVENT",
-                "data": event_response.model_dump(mode="json"),
-            })
+            if self._dispatcher is not None:
+                await self._dispatcher.dispatch(saved_event, matching)
+            else:
+                logger.debug("dispatcher not configured; face alert event saved without broadcast")
         except Exception as e:
             logger.warning("Face alert creation failed: %s", e)
 

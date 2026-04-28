@@ -33,6 +33,7 @@ class _DbSessionWorker:
         from app.domains.alert.adapter.outbound.persistence.sqlalchemy_danger_event_repository import SqlAlchemyDangerEventRepository
         from app.domains.face.adapter.outbound.external.qdrant_embedding_adapter import QdrantEmbeddingAdapter
         from app.domains.face.application.usecase.recognition_log_usecase import CreateRecognitionLogUseCase
+        from app.infrastructure.event_bus.notification_dispatcher import notification_dispatcher
 
         embedding_store = QdrantEmbeddingAdapter()
 
@@ -49,6 +50,7 @@ class _DbSessionWorker:
                         embedding_store=embedding_store,
                         alert_rule_repo=SqlAlchemyAlertRuleRepository(session),
                         danger_event_repo=SqlAlchemyDangerEventRepository(session),
+                        dispatcher=notification_dispatcher,
                     ),
                 )
                 worker._prev_frames = self._prev_frames

@@ -66,6 +66,34 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("camera→stream sync skipped due to error: %s", exc)
 
+    try:
+        if settings.use_database:
+            from app.domains.alert.adapter.outbound.persistence.sqlalchemy_alert_rule_repository import (
+                SqlAlchemyAlertRuleRepository,
+            )
+            from app.domains.alert.domain.entity.alert_rule import AlertRule
+            from app.infrastructure.database.session import async_session_factory
+
+            async with async_session_factory() as session:
+                async with session.begin():
+                    rule_repo = SqlAlchemyAlertRuleRepository(session)
+                    existing = await rule_repo.find_all()
+                    if not existing:
+                        default_rule = AlertRule(
+                            name="얼굴 인식 알림",
+                            danger_types=["FACE_RECOGNIZED"],
+                            min_severity="LOW",
+                            notify_websocket=True,
+                            notify_mqtt=False,
+                            notify_email=False,
+                            enable_face_recognition=True,
+                            is_active=True,
+                        )
+                        await rule_repo.save(default_rule)
+                        logger.info("Default alert rule created: 얼굴 인식 알림")
+    except Exception as exc:
+        logger.warning("default alert rule bootstrap skipped: %s", exc)
+
     yield
 
     await stop_face_recognition_pipeline()
