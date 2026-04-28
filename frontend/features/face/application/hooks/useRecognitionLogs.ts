@@ -1,41 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import useSWR from "swr";
+import { useAtomValue } from "jotai";
 import type { RecognitionLog } from "../../domain/model/face";
-import { env } from "@/infrastructure/config/env";
+import {
+  ensureNotificationStream,
+  recognitionEventsAtom,
+} from "@/features/notification/application/atoms/notificationStore";
 
 export function useRecognitionLogs() {
   const { data, error, isLoading, mutate } = useSWR<RecognitionLog[]>(
     "/api/faces/recognition-logs?limit=20",
   );
-  const [realtimeLogs, setRealtimeLogs] = useState<RecognitionLog[]>([]);
-
   useEffect(() => {
-    const wsUrl = env.wsUrl || env.apiUrl.replace("http", "ws");
-    const ws = new WebSocket(`${wsUrl}/api/ws/notifications`);
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "recognition") {
-          const log: RecognitionLog = {
-            id: msg.data.id,
-            camera_id: msg.data.camera_id,
-            identity_id: msg.data.identity_id ?? null,
-            identity_name: msg.data.identity_name,
-            identity_type: msg.data.identity_type,
-            confidence: msg.data.confidence,
-            is_registered: msg.data.is_registered,
-            created_at: msg.data.created_at,
-          };
-          setRealtimeLogs((prev) => [log, ...prev].slice(0, 50));
-        }
-      } catch {}
-    };
-
-    return () => ws.close();
+    ensureNotificationStream();
   }, []);
+  const realtime = useAtomValue(recognitionEventsAtom);
+
+  const realtimeLogs: RecognitionLog[] = realtime.map((r) => ({
+    id: r.id,
+    camera_id: r.camera_id,
+    identity_id: r.identity_id ?? null,
+    identity_name: r.identity_name,
+    identity_type: r.identity_type,
+    confidence: r.confidence,
+    is_registered: r.is_registered,
+    created_at: r.created_at,
+  }));
 
   const allLogs = [...realtimeLogs, ...(data ?? [])];
   const seen = new Set<string>();

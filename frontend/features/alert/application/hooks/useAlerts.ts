@@ -1,31 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import useSWR from "swr";
+import { useAtomValue } from "jotai";
 import type { DangerEvent, DangerEventList } from "../../infrastructure/api/alertApi";
-import { env } from "@/infrastructure/config/env";
+import {
+  dangerEventsAtom,
+  ensureNotificationStream,
+} from "@/features/notification/application/atoms/notificationStore";
 
 export function useAlerts() {
   const { data, error, isLoading, mutate } = useSWR<DangerEventList>("/api/alerts/events");
-  const [realtimeEvents, setRealtimeEvents] = useState<DangerEvent[]>([]);
-
   useEffect(() => {
-    const backendPort = new URL(env.apiUrl).port || "8000";
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.hostname}:${backendPort}`;
-    const ws = new WebSocket(`${wsUrl}/api/ws/notifications`);
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "DANGER_EVENT") {
-          setRealtimeEvents((prev) => [msg.data as DangerEvent, ...prev].slice(0, 50));
-        }
-      } catch {}
-    };
-
-    return () => ws.close();
+    ensureNotificationStream();
   }, []);
+  const realtime = useAtomValue(dangerEventsAtom);
+
+  const realtimeEvents: DangerEvent[] = realtime.map((r) => ({
+    id: r.id,
+    camera_id: r.camera_id,
+    danger_type: r.danger_type,
+    severity: r.severity,
+    confidence: r.confidence,
+    description: r.description,
+    snapshot_path: r.snapshot_path,
+    status: r.status,
+    resolved_by: r.resolved_by,
+    resolved_at: r.resolved_at,
+    created_at: r.created_at,
+  }));
 
   const allEvents = [...realtimeEvents, ...(data?.items ?? [])];
   const seen = new Set<string>();
