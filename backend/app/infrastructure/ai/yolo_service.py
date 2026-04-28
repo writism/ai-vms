@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -28,10 +29,23 @@ DANGER_CLASS_MAP = {
 }
 
 
+def _detect_torch_gpu() -> tuple[bool, str]:
+    try:
+        import torch
+        if torch.cuda.is_available():
+            name = torch.cuda.get_device_name(0)
+            return True, name
+        return False, "cpu"
+    except ImportError:
+        return False, "cpu"
+
+
 class YoloService:
     def __init__(self) -> None:
         self._model: Any = None
         self._loaded = False
+        self._use_gpu = False
+        self._device = "cpu"
 
     async def load_model(self) -> bool:
         if not settings.danger_detection_enabled:
@@ -40,9 +54,18 @@ class YoloService:
         try:
             from ultralytics import YOLO
 
+            loop = asyncio.get_event_loop()
+            self._use_gpu, gpu_name = await loop.run_in_executor(None, _detect_torch_gpu)
+            self._device = "0" if self._use_gpu else "cpu"
+
             self._model = YOLO(settings.danger_model_path)
             self._loaded = True
-            logger.info("YOLO danger detection model loaded: %s", settings.danger_model_path)
+            logger.info(
+                "YOLO loaded: model=%s, device=%s (%s)",
+                settings.danger_model_path,
+                self._device,
+                gpu_name,
+            )
             return True
         except Exception as e:
             logger.warning("YOLO model not available: %s", e)
@@ -53,11 +76,19 @@ class YoloService:
     def is_loaded(self) -> bool:
         return self._loaded
 
+    @property
+    def use_gpu(self) -> bool:
+        return self._use_gpu
+
     async def detect(self, frame: np.ndarray, confidence_threshold: float = 0.5) -> list[DangerDetection]:
         if not self._loaded:
             return []
 
-        results = self._model(frame, verbose=False, conf=confidence_threshold)
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(
+            None,
+            lambda: self._model(frame, verbose=False, conf=confidence_threshold, device=self._device),
+        )
         detections: list[DangerDetection] = []
 
         for result in results:

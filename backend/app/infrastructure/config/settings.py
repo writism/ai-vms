@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     face_quality_threshold: float = 0.4
     embedding_dimension: int = 512
     use_adaface_fallback: bool = True
+    face_model_name: str = "buffalo_l"
+    face_det_size: int = 640
 
     mqtt_broker_url: str = "mqtt://localhost:1883"
     mqtt_topic_prefix: str = "ai-vms"
@@ -32,6 +34,7 @@ class Settings(BaseSettings):
     go2rtc_url: str = "http://localhost:1984"
     go2rtc_direct_url: str = "http://localhost:1984"
 
+    face_recognition_pipeline_enabled: bool = True
     motion_gate_enabled: bool = True
     process_interval_active: float = 0.01
     process_interval_idle: float = 0.2

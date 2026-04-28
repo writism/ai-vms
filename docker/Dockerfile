@@ -9,11 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/requirements.txt backend/requirements-ai.txt ./
+RUN pip install --no-cache-dir -r requirements-ai.txt
 
 COPY backend/ .
 RUN chmod +x scripts/entrypoint.sh
+
+RUN mkdir -p /app/models
 
 EXPOSE 8000
 

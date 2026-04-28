@@ -51,6 +51,7 @@ class AlertRuleResponse(BaseModel):
     notify_mqtt: bool
     notify_email: bool
     email_recipients: list[str]
+    enable_face_recognition: bool
     is_active: bool
     created_at: datetime
 
@@ -65,6 +66,7 @@ class AlertRuleResponse(BaseModel):
             notify_mqtt=r.notify_mqtt,
             notify_email=r.notify_email,
             email_recipients=r.email_recipients,
+            enable_face_recognition=r.enable_face_recognition,
             is_active=r.is_active,
             created_at=r.created_at,
         )

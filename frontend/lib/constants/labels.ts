@@ -13,6 +13,7 @@ export const dangerLabels: Record<string, string> = {
   WEAPON: "무기",
   FALL: "쓰러짐",
   INTRUSION: "침입",
+  FACE_RECOGNIZED: "얼굴 인식",
 };
 
 export const eventTypeLabels: Record<string, string> = {

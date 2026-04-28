@@ -11,6 +11,7 @@ export interface AlertRule {
   notify_mqtt: boolean;
   notify_email: boolean;
   email_recipients: string[];
+  enable_face_recognition: boolean;
   is_active: boolean;
   created_at: string;
 }

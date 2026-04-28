@@ -24,6 +24,7 @@ class CreateAlertRuleRequest(BaseModel):
     notify_mqtt: bool = False
     notify_email: bool = False
     email_recipients: list[str] = []
+    enable_face_recognition: bool = False
 
 
 class ListDangerEventsRequest(BaseModel):

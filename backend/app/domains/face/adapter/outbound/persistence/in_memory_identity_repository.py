@@ -18,5 +18,11 @@ class InMemoryIdentityRepository(IdentityRepositoryPort):
     async def find_all(self) -> list[Identity]:
         return list(self._store.values())
 
+    async def update(self, identity: Identity) -> Identity:
+        if identity.id not in self._store:
+            raise ValueError(f"Identity {identity.id} not found")
+        self._store[identity.id] = identity
+        return identity
+
     async def delete(self, identity_id: UUID) -> bool:
         return self._store.pop(identity_id, None) is not None

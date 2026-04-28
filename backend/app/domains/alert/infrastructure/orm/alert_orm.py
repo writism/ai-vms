@@ -35,6 +35,7 @@ class AlertRuleORM(Base):
     notify_mqtt: Mapped[bool] = mapped_column(Boolean, default=False)
     notify_email: Mapped[bool] = mapped_column(Boolean, default=False)
     email_recipients: Mapped[list[str]] = mapped_column(ARRAY(String(255)), default=list)
+    enable_face_recognition: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

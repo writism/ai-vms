@@ -24,6 +24,7 @@ export default function AlertRulesPage() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [minSeverity, setMinSeverity] = useState("HIGH");
   const [channels, setChannels] = useState<string[]>(["WEBSOCKET"]);
+  const [enableFaceRecognition, setEnableFaceRecognition] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const toggleType = (type: string) => {
@@ -39,19 +40,23 @@ export default function AlertRulesPage() {
   };
 
   const handleCreate = async () => {
-    if (!name || selectedTypes.length === 0) return;
+    if (!name || (selectedTypes.length === 0 && !enableFaceRecognition)) return;
     setSubmitting(true);
     try {
       await alertApi.createRule({
         name,
         danger_types: selectedTypes,
         min_severity: minSeverity,
-        notification_channels: channels,
+        notify_websocket: channels.includes("WEBSOCKET"),
+        notify_mqtt: channels.includes("MQTT"),
+        notify_email: channels.includes("EMAIL"),
         email_recipients: [],
+        enable_face_recognition: enableFaceRecognition,
       });
       setShowForm(false);
       setName("");
       setSelectedTypes([]);
+      setEnableFaceRecognition(false);
       refresh();
     } finally {
       setSubmitting(false);
@@ -111,6 +116,26 @@ export default function AlertRulesPage() {
           </div>
 
           <div>
+            <label className="text-sm font-medium">얼굴 인식</label>
+            <div className="mt-1">
+              <button
+                type="button"
+                onClick={() => setEnableFaceRecognition(!enableFaceRecognition)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  enableFaceRecognition
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground"
+                }`}
+              >
+                얼굴 검색
+              </button>
+              <p className="mt-1 text-xs text-muted-foreground">
+                등록된 인물이 카메라에서 인식되면 알림을 발생시킵니다
+              </p>
+            </div>
+          </div>
+
+          <div>
             <label className="text-sm font-medium">최소 심각도</label>
             <div className="mt-1 flex gap-2">
               {SEVERITIES.map((s) => (
@@ -150,7 +175,7 @@ export default function AlertRulesPage() {
             </div>
           </div>
 
-          <Button onClick={handleCreate} disabled={submitting || !name || selectedTypes.length === 0}>
+          <Button onClick={handleCreate} disabled={submitting || !name || (selectedTypes.length === 0 && !enableFaceRecognition)}>
             {submitting ? "생성 중..." : "규칙 생성"}
           </Button>
         </div>
@@ -182,6 +207,11 @@ export default function AlertRulesPage() {
                       {DANGER_TYPES.find((d) => d.value === dt)?.label ?? dt}
                     </span>
                   ))}
+                  {rule.enable_face_recognition && (
+                    <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-xs text-violet-400">
+                      얼굴 검색
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   최소 심각도: {rule.min_severity} ·{" "}

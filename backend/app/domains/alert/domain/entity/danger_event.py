@@ -12,6 +12,7 @@ class DangerType(StrEnum):
     WEAPON = "WEAPON"
     FALL = "FALL"
     INTRUSION = "INTRUSION"
+    FACE_RECOGNIZED = "FACE_RECOGNIZED"
 
 
 class Severity(StrEnum):

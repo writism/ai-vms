@@ -4,9 +4,21 @@ from uuid import UUID
 
 class RegisterIdentityRequest(BaseModel):
     name: str
-    identity_type: str = "INTERNAL"
+    identity_type: str = "EMPLOYEE"
     department: str | None = None
     employee_id: str | None = None
+    company: str | None = None
+    visit_purpose: str | None = None
+    notes: str | None = None
+
+
+class UpdateIdentityRequest(BaseModel):
+    name: str | None = None
+    identity_type: str | None = None
+    department: str | None = None
+    employee_id: str | None = None
+    company: str | None = None
+    visit_purpose: str | None = None
     notes: str | None = None
 
 

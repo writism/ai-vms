@@ -28,6 +28,7 @@ export interface AlertRule {
   notify_mqtt: boolean;
   notify_email: boolean;
   email_recipients: string[];
+  enable_face_recognition: boolean;
   is_active: boolean;
   created_at: string;
 }
@@ -36,8 +37,11 @@ export interface CreateAlertRuleRequest {
   name: string;
   danger_types: string[];
   min_severity: string;
-  notification_channels: string[];
-  email_recipients: string[];
+  notify_websocket?: boolean;
+  notify_mqtt?: boolean;
+  notify_email?: boolean;
+  email_recipients?: string[];
+  enable_face_recognition?: boolean;
 }
 
 export const alertApi = {

@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.domains.alert.adapter.inbound.api.alert_router import router as alert_router
 from app.domains.alert.adapter.inbound.api.notification_router import router as notification_router
@@ -52,7 +53,15 @@ async def lifespan(app: FastAPI):
         mqtt_client._connected,
     )
 
+    from app.infrastructure.pipeline.face_recognition_bootstrap import (
+        start_face_recognition_pipeline,
+        stop_face_recognition_pipeline,
+    )
+    await start_face_recognition_pipeline()
+
     yield
+
+    await stop_face_recognition_pipeline()
 
 
 app = FastAPI(
@@ -71,6 +80,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+import os
+os.makedirs("uploads/faces", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(camera_router, prefix="/api")
@@ -91,6 +104,7 @@ async def health_check():
     from app.infrastructure.ai.insightface_service import insightface_service
     from app.infrastructure.ai.yolo_service import yolo_service
     from app.infrastructure.event_bus.mqtt_client import mqtt_client
+    from app.infrastructure.pipeline.face_recognition_bootstrap import _scheduler
 
     async def check_turn() -> bool:
         try:
@@ -113,8 +127,11 @@ async def health_check():
         "version": "0.1.0",
         "services": {
             "insightface": insightface_service.is_loaded,
+            "insightface_gpu": insightface_service.use_gpu,
             "yolo": yolo_service.is_loaded,
+            "yolo_gpu": yolo_service.use_gpu,
             "turn": turn_ok,
             "mqtt": mqtt_client._connected,
+            "face_recognition_pipeline": _scheduler is not None,
         },
     }

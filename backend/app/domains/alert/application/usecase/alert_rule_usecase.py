@@ -19,6 +19,7 @@ class CreateAlertRuleUseCase:
             notify_mqtt=request.notify_mqtt,
             notify_email=request.notify_email,
             email_recipients=request.email_recipients,
+            enable_face_recognition=request.enable_face_recognition,
         )
         saved = await self._repo.save(rule)
         return AlertRuleResponse.from_entity(saved)

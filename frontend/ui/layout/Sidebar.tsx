@@ -22,7 +22,7 @@ const navigation: { name: string; href: string; icon: LucideIcon }[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "카메라", href: "/cameras", icon: Camera },
   { name: "라이브뷰", href: "/live", icon: Monitor },
-  { name: "인물관리", href: "/faces", icon: UserRound },
+  { name: "출입관리", href: "/faces", icon: UserRound },
   { name: "알림", href: "/alerts", icon: Bell },
   { name: "알림 규칙", href: "/alerts/rules", icon: SlidersHorizontal },
   { name: "이벤트", href: "/events", icon: CalendarClock },

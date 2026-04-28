@@ -12,6 +12,7 @@ class AlertRule:
     notify_mqtt: bool = False
     notify_email: bool = False
     email_recipients: list[str] = field(default_factory=list)
+    enable_face_recognition: bool = False
     is_active: bool = True
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

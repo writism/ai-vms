@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -20,22 +21,65 @@ class DetectedFace:
     quality_score: float
 
 
+def _detect_gpu() -> tuple[bool, str]:
+    try:
+        import onnxruntime as ort
+        from onnx import TensorProto, helper
+
+        if "CUDAExecutionProvider" not in ort.get_available_providers():
+            return False, "CPUExecutionProvider"
+
+        X = helper.make_tensor_value_info("X", TensorProto.FLOAT, [1])
+        Y = helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1])
+        node = helper.make_node("Identity", ["X"], ["Y"])
+        graph = helper.make_graph([node], "test", [X], [Y])
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
+
+        sess = ort.InferenceSession(
+            model.SerializeToString(),
+            providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+        )
+        active = sess.get_providers()
+        if "CUDAExecutionProvider" in active:
+            return True, "CUDAExecutionProvider"
+        return False, "CPUExecutionProvider"
+    except Exception:
+        return False, "CPUExecutionProvider"
+
+
 class InsightFaceService:
     def __init__(self) -> None:
         self._app: Any = None
         self._loaded = False
+        self._use_gpu = False
+        self._provider = "CPUExecutionProvider"
 
     async def load_models(self) -> bool:
         try:
             from insightface.app import FaceAnalysis
 
+            loop = asyncio.get_event_loop()
+            self._use_gpu, self._provider = await loop.run_in_executor(None, _detect_gpu)
+
+            if self._use_gpu:
+                providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            else:
+                providers = ["CPUExecutionProvider"]
+
+            det_size = (settings.face_det_size, settings.face_det_size)
+
             self._app = FaceAnalysis(
-                name="buffalo_l",
-                providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+                name=settings.face_model_name,
+                providers=providers,
             )
-            self._app.prepare(ctx_id=0, det_size=(640, 640))
+            self._app.prepare(ctx_id=0 if self._use_gpu else -1, det_size=det_size)
             self._loaded = True
-            logger.info("InsightFace models loaded successfully")
+            logger.info(
+                "InsightFace loaded: model=%s, provider=%s, det_size=%s",
+                settings.face_model_name,
+                self._provider,
+                det_size,
+            )
             return True
         except Exception as e:
             logger.warning("InsightFace models not available: %s", e)
@@ -46,11 +90,16 @@ class InsightFaceService:
     def is_loaded(self) -> bool:
         return self._loaded
 
+    @property
+    def use_gpu(self) -> bool:
+        return self._use_gpu
+
     async def detect_and_embed(self, frame: np.ndarray) -> list[DetectedFace]:
         if not self._loaded:
             return []
 
-        faces = self._app.get(frame)
+        loop = asyncio.get_event_loop()
+        faces = await loop.run_in_executor(None, self._app.get, frame)
         results: list[DetectedFace] = []
 
         for face in faces:

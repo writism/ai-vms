@@ -12,12 +12,17 @@ services:
       - REDIS_URL=redis://redis:6379
       - QDRANT_URL=http://qdrant:6333
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
-      - GO2RTC_URL=http://go2rtc:1984
+      - GO2RTC_URL=http://host.docker.internal:1984
+      - CORS_ORIGINS=http://localhost:3000,http://192.168.0.42:3000,https://localhost:3000,https://192.168.0.42:3000
       - USE_DATABASE=true
       - DEBUG=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../backend:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      - ../models:/app/models
+      - ./certs:/app/certs:ro
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /app/certs/localhost.key --ssl-certfile /app/certs/localhost.crt
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,19 +46,23 @@ services:
       - REDIS_URL=redis://redis:6379
       - QDRANT_URL=http://qdrant:6333
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
-      - GO2RTC_URL=http://go2rtc:1984
+      - GO2RTC_URL=http://host.docker.internal:1984
+      - CORS_ORIGINS=http://localhost:3000,http://192.168.0.42:3000,https://localhost:3000,https://192.168.0.42:3000
       - USE_DATABASE=true
       - DEBUG=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../backend:/app
       - ../models:/app/models
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      - ./certs:/app/certs:ro
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /app/certs/localhost.key --ssl-certfile /app/certs/localhost.crt
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: all
               capabilities: [gpu]
     depends_on:
       postgres:
@@ -74,14 +83,15 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-      - NEXT_PUBLIC_WS_URL=ws://backend:8000
-      - NEXT_PUBLIC_GO2RTC_URL=http://go2rtc:1984
+      - NEXT_PUBLIC_API_URL=https://192.168.0.42:8000
+      - NEXT_PUBLIC_WS_URL=wss://192.168.0.42:8000
+      - NEXT_PUBLIC_GO2RTC_URL=http://192.168.0.42:1984
     volumes:
       - ../frontend:/app
       - /app/node_modules
       - /app/.next
-    command: npm run dev
+      - ./certs:/app/certs:ro
+    command: npx next dev --hostname 0.0.0.0 --experimental-https --experimental-https-key /app/certs/localhost.key --experimental-https-cert /app/certs/localhost.crt
     depends_on:
       - backend
 

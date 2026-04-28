@@ -6,13 +6,22 @@ from app.domains.face.infrastructure.orm.face_orm import FaceORM, IdentityORM
 class IdentityMapper:
     @staticmethod
     def to_entity(orm: IdentityORM) -> Identity:
+        face_image_url: str | None = None
+        if orm.faces:
+            for f in orm.faces:
+                if f.image_path:
+                    face_image_url = f"/{f.image_path}"
+                    break
         return Identity(
             id=orm.id,
             name=orm.name,
             identity_type=IdentityType(orm.identity_type),
             department=orm.department,
             employee_id=orm.employee_id,
+            company=orm.company,
+            visit_purpose=orm.visit_purpose,
             notes=orm.notes,
+            face_image_url=face_image_url,
             is_active=orm.is_active,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
@@ -26,6 +35,8 @@ class IdentityMapper:
             identity_type=entity.identity_type.value,
             department=entity.department,
             employee_id=entity.employee_id,
+            company=entity.company,
+            visit_purpose=entity.visit_purpose,
             notes=entity.notes,
             is_active=entity.is_active,
             created_at=entity.created_at,

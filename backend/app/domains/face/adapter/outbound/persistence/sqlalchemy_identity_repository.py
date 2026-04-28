@@ -28,6 +28,22 @@ class SqlAlchemyIdentityRepository(IdentityRepositoryPort):
         result = await self._session.execute(select(IdentityORM))
         return [IdentityMapper.to_entity(orm) for orm in result.scalars().all()]
 
+    async def update(self, identity: Identity) -> Identity:
+        orm = await self._session.get(IdentityORM, identity.id)
+        if orm is None:
+            raise ValueError(f"Identity {identity.id} not found")
+        orm.name = identity.name
+        orm.identity_type = identity.identity_type.value
+        orm.department = identity.department
+        orm.employee_id = identity.employee_id
+        orm.company = identity.company
+        orm.visit_purpose = identity.visit_purpose
+        orm.notes = identity.notes
+        orm.is_active = identity.is_active
+        await self._session.flush()
+        await self._session.refresh(orm)
+        return IdentityMapper.to_entity(orm)
+
     async def delete(self, identity_id: UUID) -> bool:
         orm = await self._session.get(IdentityORM, identity_id)
         if orm is None:

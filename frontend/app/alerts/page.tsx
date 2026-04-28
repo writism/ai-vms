@@ -35,15 +35,22 @@ export default function AlertsPage() {
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs font-medium",
-                    severityColors[event.severity],
+                    event.danger_type === "FACE_RECOGNIZED"
+                      ? "bg-violet-100 text-violet-800"
+                      : severityColors[event.severity],
                   )}
                 >
-                  {event.severity}
+                  {event.danger_type === "FACE_RECOGNIZED" ? "얼굴" : event.severity}
                 </span>
                 <div>
                   <p className="font-medium">
                     {dangerLabels[event.danger_type] ?? event.danger_type}
                   </p>
+                  {event.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {event.description}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {new Date(event.created_at).toLocaleString("ko-KR")}
                   </p>

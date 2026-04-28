@@ -8,14 +8,29 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.database.session import Base
 
 
+class RecognitionLogORM(Base):
+    __tablename__ = "recognition_logs"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    camera_id: Mapped[UUID] = mapped_column(ForeignKey("cameras.id"))
+    identity_id: Mapped[UUID | None] = mapped_column(ForeignKey("identities.id"), nullable=True)
+    identity_name: Mapped[str] = mapped_column(String(100))
+    identity_type: Mapped[str] = mapped_column(String(20))
+    confidence: Mapped[float] = mapped_column(Float)
+    is_registered: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class IdentityORM(Base):
     __tablename__ = "identities"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(100))
-    identity_type: Mapped[str] = mapped_column(String(20), default="INTERNAL")
+    identity_type: Mapped[str] = mapped_column(String(20), default="EMPLOYEE")
     department: Mapped[str | None] = mapped_column(String(100), nullable=True)
     employee_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    company: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    visit_purpose: Mapped[str | None] = mapped_column(String(200), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

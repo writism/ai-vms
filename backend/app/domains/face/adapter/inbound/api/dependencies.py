@@ -8,10 +8,13 @@ from app.domains.face.application.port.face_repository_port import FaceRepositor
 from app.domains.face.application.port.identity_repository_port import IdentityRepositoryPort
 from app.domains.face.application.usecase.face_search_usecase import RegisterFaceUseCase, SearchFaceUseCase
 from app.domains.face.application.usecase.identity_usecase import (
+    DeleteIdentityUseCase,
     GetIdentityUseCase,
     ListIdentitiesUseCase,
     RegisterIdentityUseCase,
+    UpdateIdentityUseCase,
 )
+from app.domains.face.application.usecase.recognition_log_usecase import ListRecognitionLogsUseCase
 from app.infrastructure.config.settings import settings
 
 _in_memory_identity_repo = InMemoryIdentityRepository()
@@ -60,3 +63,23 @@ def get_register_face_usecase(session: AsyncSession | None = Depends(_get_sessio
 
 def get_search_face_usecase(session: AsyncSession | None = Depends(_get_session)) -> SearchFaceUseCase:
     return SearchFaceUseCase(_embedding_store, _get_identity_repo(session))
+
+
+def get_update_identity_usecase(session: AsyncSession | None = Depends(_get_session)) -> UpdateIdentityUseCase:
+    return UpdateIdentityUseCase(_get_identity_repo(session))
+
+
+def get_delete_identity_usecase(session: AsyncSession | None = Depends(_get_session)) -> DeleteIdentityUseCase:
+    return DeleteIdentityUseCase(_get_identity_repo(session), _get_face_repo(session), _embedding_store)
+
+
+def get_face_repo(session: AsyncSession | None = Depends(_get_session)) -> FaceRepositoryPort:
+    return _get_face_repo(session)
+
+
+def get_list_recognition_logs_usecase(session: AsyncSession | None = Depends(_get_session)) -> ListRecognitionLogsUseCase:
+    if settings.use_database and session:
+        from app.domains.face.adapter.outbound.persistence.sqlalchemy_recognition_log_repository import SqlAlchemyRecognitionLogRepository
+        return ListRecognitionLogsUseCase(SqlAlchemyRecognitionLogRepository(session))
+    from app.domains.face.adapter.outbound.persistence.sqlalchemy_recognition_log_repository import SqlAlchemyRecognitionLogRepository
+    raise RuntimeError("Recognition logs require database")
