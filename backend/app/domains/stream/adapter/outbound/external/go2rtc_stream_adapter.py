@@ -7,7 +7,7 @@ class Go2RtcStreamAdapter(StreamPort):
         self._client = client or Go2RtcClient()
 
     async def register_stream(self, name: str, rtsp_url: str) -> bool:
-        return await self._client.add_stream(name, rtsp_url)
+        return await self._client.restart_stream(name, rtsp_url)
 
     async def unregister_stream(self, name: str) -> bool:
         return await self._client.remove_stream(name)

@@ -1,8 +1,10 @@
 import asyncio
+import fcntl
 import logging
 import re
 import socket
 import struct
+import time
 import uuid
 from dataclasses import dataclass
 from urllib.parse import unquote
@@ -12,6 +14,7 @@ logger = logging.getLogger(__name__)
 WS_DISCOVERY_MULTICAST = "239.255.255.250"
 WS_DISCOVERY_PORT = 3702
 DEFAULT_TIMEOUT = 3.0
+SIOCGIFADDR = 0x8915
 
 PROBE_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <e:Envelope xmlns:e="http://www.w3.org/2003/05/soap-envelope"
@@ -42,9 +45,11 @@ class DiscoveredDevice:
     hardware: str | None = None
 
 
+_IPV4_HOST_RE = re.compile(r"^https?://(\d{1,3}(?:\.\d{1,3}){3})(?::(\d+))?(?:/|$)")
+
+
 def _parse_probe_match(xml_data: str) -> list[DiscoveredDevice]:
     devices: list[DiscoveredDevice] = []
-
     addr_pattern = re.compile(r"<[\w:]*XAddrs[^>]*>(.*?)</[\w:]*XAddrs>", re.DOTALL)
     scope_pattern = re.compile(r"<[\w:]*Scopes[^>]*>(.*?)</[\w:]*Scopes>", re.DOTALL)
 
@@ -65,51 +70,115 @@ def _parse_probe_match(xml_data: str) -> list[DiscoveredDevice]:
                 hardware = unquote(scope.rsplit("/", 1)[-1])
 
         for xaddr in xaddrs:
-            ip_match = re.search(r"https?://([^:/]+)(?::(\d+))?", xaddr)
-            if ip_match:
-                ip = ip_match.group(1)
-                port = int(ip_match.group(2)) if ip_match.group(2) else 80
-                devices.append(
-                    DiscoveredDevice(
-                        address=xaddr,
-                        ip_address=ip,
-                        port=port,
-                        scopes=scopes,
-                        manufacturer=manufacturer,
-                        model=model,
-                        hardware=hardware,
-                    )
+            ip_match = _IPV4_HOST_RE.match(xaddr)
+            if not ip_match:
+                continue
+            ip = ip_match.group(1)
+            port = int(ip_match.group(2)) if ip_match.group(2) else 80
+            devices.append(
+                DiscoveredDevice(
+                    address=xaddr,
+                    ip_address=ip,
+                    port=port,
+                    scopes=scopes,
+                    manufacturer=manufacturer,
+                    model=model,
+                    hardware=hardware,
                 )
+            )
 
     return devices
 
 
+def _list_ipv4_interfaces() -> list[tuple[str, str]]:
+    interfaces: list[tuple[str, str]] = []
+    try:
+        names = socket.if_nameindex()
+    except OSError as exc:
+        logger.warning("if_nameindex unavailable: %s", exc)
+        return interfaces
+
+    for _, name in names:
+        if name == "lo" or name.startswith(("docker", "br-", "veth")):
+            continue
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+                packed = struct.pack("256s", name.encode("utf-8")[:15])
+                ip_bytes = fcntl.ioctl(probe.fileno(), SIOCGIFADDR, packed)[20:24]
+                ip = socket.inet_ntoa(ip_bytes)
+            if ip.startswith("127.") or ip.startswith("169.254."):
+                continue
+            interfaces.append((name, ip))
+        except OSError:
+            continue
+    return interfaces
+
+
 class OnvifDiscoveryProtocol(asyncio.DatagramProtocol):
-    def __init__(self, future: asyncio.Future, timeout: float):
-        self._future = future
-        self._devices: list[DiscoveredDevice] = []
-        self._seen_ips: set[str] = set()
-        self._timeout = timeout
+    def __init__(self, seen_ips: set[str], devices: list[DiscoveredDevice]) -> None:
+        self._seen_ips = seen_ips
+        self._devices = devices
+        self._received = 0
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:
         self._transport = transport
 
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
+        self._received += 1
         try:
             xml_str = data.decode("utf-8", errors="ignore")
-            parsed = _parse_probe_match(xml_str)
-            for dev in parsed:
-                if dev.ip_address not in self._seen_ips:
-                    self._seen_ips.add(dev.ip_address)
-                    self._devices.append(dev)
+            for dev in _parse_probe_match(xml_str):
+                if dev.ip_address in self._seen_ips:
+                    continue
+                self._seen_ips.add(dev.ip_address)
+                self._devices.append(dev)
         except Exception:
             logger.debug("Failed to parse probe response from %s", addr)
 
     def error_received(self, exc: Exception) -> None:
         logger.debug("Discovery protocol error: %s", exc)
 
-    def get_devices(self) -> list[DiscoveredDevice]:
-        return self._devices
+    @property
+    def received_count(self) -> int:
+        return self._received
+
+
+async def _open_probe_socket(
+    loop: asyncio.AbstractEventLoop,
+    iface_name: str,
+    iface_ip: str,
+    seen_ips: set[str],
+    devices: list[DiscoveredDevice],
+) -> tuple[asyncio.DatagramTransport, OnvifDiscoveryProtocol] | None:
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        if iface_ip != "0.0.0.0":
+            sock.setsockopt(
+                socket.IPPROTO_IP,
+                socket.IP_MULTICAST_IF,
+                socket.inet_aton(iface_ip),
+            )
+        sock.bind((iface_ip, 0))
+        mreq = struct.pack(
+            "4s4s",
+            socket.inet_aton(WS_DISCOVERY_MULTICAST),
+            socket.inet_aton(iface_ip),
+        )
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        sock.setblocking(False)
+
+        transport, protocol = await loop.create_datagram_endpoint(
+            lambda: OnvifDiscoveryProtocol(seen_ips, devices),
+            sock=sock,
+        )
+        probe = PROBE_TEMPLATE.format(message_id=uuid.uuid4())
+        transport.sendto(probe.encode("utf-8"), (WS_DISCOVERY_MULTICAST, WS_DISCOVERY_PORT))
+        return transport, protocol
+    except OSError as exc:
+        logger.warning("WS-Discovery skip iface %s (%s): %s", iface_name, iface_ip, exc)
+        return None
 
 
 async def discover_onvif_devices(
@@ -117,32 +186,42 @@ async def discover_onvif_devices(
     timeout: float = DEFAULT_TIMEOUT,
 ) -> list[DiscoveredDevice]:
     loop = asyncio.get_running_loop()
-    future: asyncio.Future = loop.create_future()
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
     if interface_ip != "0.0.0.0":
-        sock.setsockopt(
-            socket.IPPROTO_IP,
-            socket.IP_MULTICAST_IF,
-            socket.inet_aton(interface_ip),
-        )
+        targets: list[tuple[str, str]] = [("explicit", interface_ip)]
+    else:
+        targets = _list_ipv4_interfaces()
+        if not targets:
+            targets = [("default", "0.0.0.0")]
 
-    mreq = struct.pack("4s4s", socket.inet_aton(WS_DISCOVERY_MULTICAST), socket.inet_aton(interface_ip))
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-    sock.setblocking(False)
+    seen_ips: set[str] = set()
+    devices: list[DiscoveredDevice] = []
+    pairs: list[tuple[asyncio.DatagramTransport, OnvifDiscoveryProtocol]] = []
 
-    transport, protocol = await loop.create_datagram_endpoint(
-        lambda: OnvifDiscoveryProtocol(future, timeout),
-        sock=sock,
-    )
+    start = time.monotonic()
+    for name, ip in targets:
+        result = await _open_probe_socket(loop, name, ip, seen_ips, devices)
+        if result is not None:
+            pairs.append(result)
 
-    probe_message = PROBE_TEMPLATE.format(message_id=uuid.uuid4())
-    transport.sendto(probe_message.encode("utf-8"), (WS_DISCOVERY_MULTICAST, WS_DISCOVERY_PORT))
+    if not pairs:
+        logger.warning("WS-Discovery: no usable interface (targets=%s)", targets)
+        return []
 
     await asyncio.sleep(timeout)
-    transport.close()
 
-    return protocol.get_devices()
+    received_total = 0
+    for transport, protocol in pairs:
+        received_total += protocol.received_count
+        transport.close()
+
+    elapsed = time.monotonic() - start
+    logger.info(
+        "WS-Discovery completed: interfaces=%s probes=%d responses=%d devices=%d elapsed=%.2fs",
+        [f"{n}={ip}" for n, ip in targets],
+        len(pairs),
+        received_total,
+        len(devices),
+        elapsed,
+    )
+    return devices

@@ -19,11 +19,13 @@ from app.domains.camera.application.usecase.network_usecase import (
 from app.domains.camera.application.usecase.delete_camera_usecase import DeleteCameraUseCase
 from app.domains.camera.application.usecase.register_camera_usecase import RegisterCameraUseCase
 from app.domains.camera.application.usecase.update_camera_usecase import FetchRtspUrlUseCase, UpdateCameraUseCase
+from app.domains.stream.adapter.outbound.external.go2rtc_stream_adapter import Go2RtcStreamAdapter
 from app.infrastructure.config.settings import settings
 
 _in_memory_camera_repo = InMemoryCameraRepository()
 _in_memory_network_repo = InMemoryNetworkRepository()
 _discovery_adapter = OnvifDiscoveryAdapter()
+_stream_adapter = Go2RtcStreamAdapter()
 
 
 def _get_camera_repo(session: AsyncSession | None = None) -> CameraRepositoryPort:
@@ -50,7 +52,7 @@ async def _get_session():
 
 
 def get_register_camera_usecase(session: AsyncSession | None = Depends(_get_session)) -> RegisterCameraUseCase:
-    return RegisterCameraUseCase(_get_camera_repo(session))
+    return RegisterCameraUseCase(_get_camera_repo(session), stream_port=_stream_adapter)
 
 
 def get_camera_usecase(session: AsyncSession | None = Depends(_get_session)) -> GetCameraUseCase:
@@ -74,11 +76,11 @@ def get_list_networks_usecase(session: AsyncSession | None = Depends(_get_sessio
 
 
 def get_update_camera_usecase(session: AsyncSession | None = Depends(_get_session)) -> UpdateCameraUseCase:
-    return UpdateCameraUseCase(_get_camera_repo(session))
+    return UpdateCameraUseCase(_get_camera_repo(session), stream_port=_stream_adapter)
 
 
 def get_fetch_rtsp_url_usecase(session: AsyncSession | None = Depends(_get_session)) -> FetchRtspUrlUseCase:
-    return FetchRtspUrlUseCase(_get_camera_repo(session), _discovery_adapter)
+    return FetchRtspUrlUseCase(_get_camera_repo(session), _discovery_adapter, stream_port=_stream_adapter)
 
 
 def get_discover_cameras_usecase() -> DiscoverCamerasUseCase:
@@ -86,13 +88,12 @@ def get_discover_cameras_usecase() -> DiscoverCamerasUseCase:
 
 
 def get_batch_register_cameras_usecase(session: AsyncSession | None = Depends(_get_session)) -> BatchRegisterCamerasUseCase:
-    return BatchRegisterCamerasUseCase(_get_camera_repo(session))
+    return BatchRegisterCamerasUseCase(_get_camera_repo(session), stream_port=_stream_adapter)
 
 
 def get_delete_camera_usecase(session: AsyncSession | None = Depends(_get_session)) -> DeleteCameraUseCase:
     from app.domains.alert.adapter.outbound.persistence.in_memory_danger_event_repository import InMemoryDangerEventRepository
     from app.domains.event.adapter.outbound.persistence.in_memory_event_repository import InMemoryEventRepository
-    from app.domains.stream.adapter.outbound.external.go2rtc_stream_adapter import Go2RtcStreamAdapter
 
     if settings.use_database and session:
         from app.domains.alert.adapter.outbound.persistence.sqlalchemy_danger_event_repository import SqlAlchemyDangerEventRepository
@@ -107,5 +108,5 @@ def get_delete_camera_usecase(session: AsyncSession | None = Depends(_get_sessio
         camera_repo=_get_camera_repo(session),
         danger_event_repo=danger_repo,
         event_repo=event_repo,
-        stream_port=Go2RtcStreamAdapter(),
+        stream_port=_stream_adapter,
     )

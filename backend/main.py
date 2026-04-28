@@ -59,6 +59,13 @@ async def lifespan(app: FastAPI):
     )
     await start_face_recognition_pipeline()
 
+    try:
+        from app.domains.stream.adapter.outbound.external.go2rtc_stream_adapter import Go2RtcStreamAdapter
+        from app.infrastructure.stream.camera_stream_sync import sync_cameras_to_streams
+        await sync_cameras_to_streams(Go2RtcStreamAdapter())
+    except Exception as exc:
+        logger.warning("camera→stream sync skipped due to error: %s", exc)
+
     yield
 
     await stop_face_recognition_pipeline()

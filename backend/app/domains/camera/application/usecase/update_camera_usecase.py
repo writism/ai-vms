@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 from urllib.parse import quote, urlparse, urlunparse
 from uuid import UUID
@@ -6,6 +7,10 @@ from app.domains.camera.application.port.camera_repository_port import CameraRep
 from app.domains.camera.application.port.discovery_port import CameraDiscoveryPort
 from app.domains.camera.application.request.camera_request import FetchRtspUrlRequest, UpdateCameraRequest
 from app.domains.camera.application.response.camera_response import CameraResponse
+from app.domains.camera.domain.entity.camera import Camera
+from app.domains.stream.application.port.stream_port import StreamPort
+
+logger = logging.getLogger(__name__)
 
 
 _TCP_TRANSPORT_MANUFACTURERS = {"tp-link", "tapo"}
@@ -25,18 +30,30 @@ def _inject_credentials(rtsp_url: str, username: str, password: str) -> str:
     return urlunparse(parsed._replace(netloc=netloc))
 
 
+async def _sync_stream(stream_port: StreamPort | None, camera: Camera) -> None:
+    if stream_port is None or not camera.rtsp_url:
+        return
+    try:
+        await stream_port.register_stream(str(camera.id), camera.rtsp_url)
+    except Exception as exc:
+        logger.warning("go2rtc register_stream failed for %s: %s", camera.id, exc)
+
+
 class UpdateCameraUseCase:
-    def __init__(self, repo: CameraRepositoryPort):
+    def __init__(self, repo: CameraRepositoryPort, stream_port: StreamPort | None = None):
         self._repo = repo
+        self._stream_port = stream_port
 
     async def execute(self, camera_id: UUID, request: UpdateCameraRequest) -> CameraResponse | None:
         camera = await self._repo.find_by_id(camera_id)
         if camera is None:
             return None
+        rtsp_changed = False
         if request.name is not None:
             camera.name = request.name
         if request.rtsp_url is not None:
             camera.rtsp_url = request.rtsp_url
+            rtsp_changed = True
         if request.onvif_port is not None:
             camera.onvif_port = request.onvif_port
         if request.manufacturer is not None:
@@ -45,13 +62,21 @@ class UpdateCameraUseCase:
             camera.model = request.model
         camera.updated_at = datetime.now(UTC)
         updated = await self._repo.update(camera)
+        if rtsp_changed:
+            await _sync_stream(self._stream_port, updated)
         return CameraResponse.from_entity(updated)
 
 
 class FetchRtspUrlUseCase:
-    def __init__(self, repo: CameraRepositoryPort, discovery: CameraDiscoveryPort):
+    def __init__(
+        self,
+        repo: CameraRepositoryPort,
+        discovery: CameraDiscoveryPort,
+        stream_port: StreamPort | None = None,
+    ):
         self._repo = repo
         self._discovery = discovery
+        self._stream_port = stream_port
 
     async def execute(self, camera_id: UUID, request: FetchRtspUrlRequest) -> CameraResponse | None:
         camera = await self._repo.find_by_id(camera_id)
@@ -75,4 +100,5 @@ class FetchRtspUrlUseCase:
             camera.model = detail.model
         camera.updated_at = datetime.now(UTC)
         updated = await self._repo.update(camera)
+        await _sync_stream(self._stream_port, updated)
         return CameraResponse.from_entity(updated)

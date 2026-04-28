@@ -119,9 +119,14 @@ export function DiscoveryDialog({
           >
             {state.status === "DISCOVERING" ? "검색 중..." : "검색 시작"}
           </Button>
-          {cameras.length > 0 && (
+          {state.status === "DISCOVERING" && (
             <span className="text-xs text-muted-foreground">
-              {cameras.length}개 발견 / {selected.size}개 선택
+              WS-Discovery 프로브 송신 중...
+            </span>
+          )}
+          {state.status === "DISCOVERED" && cameras.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              검색 완료 — {cameras.length}개 발견 / {selected.size}개 선택
             </span>
           )}
         </div>
@@ -161,7 +166,7 @@ export function DiscoveryDialog({
 
         {cameras.length === 0 && state.status === "DISCOVERED" && (
           <p className="mt-3 text-sm text-muted-foreground">
-            발견된 카메라가 없습니다
+            검색 완료 — 발견된 카메라가 없습니다. LAN의 ONVIF 카메라가 켜져 있는지 확인하세요.
           </p>
         )}
 

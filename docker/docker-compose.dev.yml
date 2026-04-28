@@ -37,16 +37,15 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.gpu
-    ports:
-      - "8001:8000"
+    network_mode: host
     env_file:
       - ../.env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://aivms:aivms@postgres:5432/aivms
-      - REDIS_URL=redis://redis:6379
-      - QDRANT_URL=http://qdrant:6333
-      - MQTT_BROKER_URL=mqtt://mosquitto:1883
-      - GO2RTC_URL=http://host.docker.internal:1984
+      - DATABASE_URL=postgresql+asyncpg://aivms:aivms@localhost:5432/aivms
+      - REDIS_URL=redis://localhost:6379
+      - QDRANT_URL=http://localhost:6333
+      - MQTT_BROKER_URL=mqtt://localhost:1883
+      - GO2RTC_URL=http://localhost:1984
       - CORS_ORIGINS=http://localhost:3000,http://192.168.0.42:3000,https://localhost:3000,https://192.168.0.42:3000
       - USE_DATABASE=true
       - DEBUG=true
@@ -54,13 +53,16 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - CUDA_VISIBLE_DEVICES=0
       - LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda-12.4/lib64
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ../backend:/app
       - ../models:/app/models
       - ./certs:/app/certs:ro
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile /app/certs/localhost.key --ssl-certfile /app/certs/localhost.crt
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload --ssl-keyfile /app/certs/localhost.key --ssl-certfile /app/certs/localhost.crt
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsk https://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
     deploy:
       resources:
         reservations:
