@@ -35,6 +35,7 @@ class FaceRecognitionWorker:
                 rtsp_url, str(camera_id), prev,
             )
             if captured is None:
+                logger.debug("Frame capture failed: camera=%s", camera_id)
                 return 0
             self._prev_frames[camera_id] = captured.frame
             if not has_motion:
@@ -42,15 +43,17 @@ class FaceRecognitionWorker:
         else:
             captured = await self._frame_capture.capture_frame(rtsp_url, str(camera_id))
             if captured is None:
+                logger.debug("Frame capture failed: camera=%s", camera_id)
                 return 0
 
         detected_faces = await self._insightface.detect_and_embed(captured.frame)
-        if not detected_faces:
-            return 0
+        if detected_faces:
+            logger.info("Detected %d face(s) from camera %s", len(detected_faces), camera_id)
 
         recognized = 0
         for face in detected_faces:
             if face.quality_score < settings.face_quality_threshold:
+                logger.debug("Face skipped (low quality=%.2f): camera=%s", face.quality_score, camera_id)
                 continue
             try:
                 await self._create_log.execute(

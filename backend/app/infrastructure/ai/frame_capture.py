@@ -41,8 +41,12 @@ class FrameCaptureService:
     def _read_frame(self, rtsp_url: str) -> np.ndarray | None:
         import cv2
 
-        cap = cv2.VideoCapture(rtsp_url)
+        clean_url = rtsp_url.split("#")[0]
+        cap = cv2.VideoCapture(clean_url, cv2.CAP_FFMPEG)
+        cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
+        cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
         if not cap.isOpened():
+            logger.debug("RTSP open failed: %s", rtsp_url.split("@")[-1])
             return None
         try:
             for _ in range(settings.frame_skip):

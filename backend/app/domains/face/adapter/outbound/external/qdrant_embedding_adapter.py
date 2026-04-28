@@ -47,11 +47,12 @@ class QdrantEmbeddingAdapter(FaceEmbeddingPort):
 
     async def search(self, embedding: list[float], limit: int = 5, threshold: float = 0.55) -> list[EmbeddingSearchResult]:
         client = await self._get_client()
-        results = await client.search(
+        response = await client.query_points(
             collection_name=COLLECTION_NAME,
-            query_vector=embedding,
+            query=embedding,
             limit=limit,
             score_threshold=threshold,
+            with_payload=True,
         )
         return [
             EmbeddingSearchResult(
@@ -59,7 +60,7 @@ class QdrantEmbeddingAdapter(FaceEmbeddingPort):
                 identity_id=UUID(r.payload["identity_id"]) if r.payload and r.payload.get("identity_id") else None,
                 score=r.score,
             )
-            for r in results
+            for r in response.points
         ]
 
     async def delete(self, face_id: UUID) -> bool:

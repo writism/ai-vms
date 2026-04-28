@@ -26,7 +26,7 @@ class NotificationDispatcher:
 
             if rule.notify_websocket:
                 await ws_manager.broadcast({
-                    "type": "DANGER_ALERT",
+                    "type": "DANGER_EVENT",
                     "data": {
                         "event_id": str(event.id),
                         "danger_type": event.danger_type.value,

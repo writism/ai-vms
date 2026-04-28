@@ -23,27 +23,34 @@ class DetectedFace:
 
 def _detect_gpu() -> tuple[bool, str]:
     try:
+        import numpy as _np
         import onnxruntime as ort
-        from onnx import TensorProto, helper
+        from onnx import TensorProto, helper, numpy_helper
 
         if "CUDAExecutionProvider" not in ort.get_available_providers():
             return False, "CPUExecutionProvider"
 
-        X = helper.make_tensor_value_info("X", TensorProto.FLOAT, [1])
-        Y = helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1])
-        node = helper.make_node("Identity", ["X"], ["Y"])
-        graph = helper.make_graph([node], "test", [X], [Y])
+        # Build a minimal Conv graph to verify cuDNN actually works on this GPU
+        X = helper.make_tensor_value_info("X", TensorProto.FLOAT, [1, 1, 3, 3])
+        Y = helper.make_tensor_value_info("Y", TensorProto.FLOAT, None)
+        W = numpy_helper.from_array(
+            _np.ones((1, 1, 1, 1), dtype=_np.float32), name="W"
+        )
+        conv = helper.make_node("Conv", ["X", "W"], ["Y"])
+        graph = helper.make_graph([conv], "gpu_test", [X], [Y], [W])
         model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
 
         sess = ort.InferenceSession(
             model.SerializeToString(),
             providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
         )
-        active = sess.get_providers()
-        if "CUDAExecutionProvider" in active:
-            return True, "CUDAExecutionProvider"
-        return False, "CPUExecutionProvider"
-    except Exception:
+        if "CUDAExecutionProvider" not in sess.get_providers():
+            return False, "CPUExecutionProvider"
+
+        sess.run(None, {"X": _np.ones((1, 1, 3, 3), dtype=_np.float32)})
+        return True, "CUDAExecutionProvider"
+    except Exception as e:
+        logger.info("GPU Conv test failed, using CPU: %s", e)
         return False, "CPUExecutionProvider"
 
 

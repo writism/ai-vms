@@ -10,7 +10,9 @@ export function useAlerts() {
   const [realtimeEvents, setRealtimeEvents] = useState<DangerEvent[]>([]);
 
   useEffect(() => {
-    const wsUrl = env.wsUrl || env.apiUrl.replace("http", "ws");
+    const backendPort = new URL(env.apiUrl).port || "8000";
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.hostname}:${backendPort}`;
     const ws = new WebSocket(`${wsUrl}/api/ws/notifications`);
 
     ws.onmessage = (event) => {

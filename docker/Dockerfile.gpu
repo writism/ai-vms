@@ -1,13 +1,20 @@
-FROM python:3.12-slim
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
-WORKDIR /app
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libgl1 \
-    libglib2.0-0 \
-    curl \
+    software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 python3.12-venv python3.12-dev \
+    build-essential libgl1 libglib2.0-0 curl \
     && rm -rf /var/lib/apt/lists/*
+
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
+
+WORKDIR /app
 
 COPY backend/requirements.txt backend/requirements-ai.txt ./
 RUN pip install --no-cache-dir -r requirements-ai.txt
