@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import { useAlertRules } from "@/features/alert/application/hooks/useAlertRules";
 import { alertApi } from "@/features/alert/infrastructure/api/alertApi";
+import { ViewModeToggle } from "@/ui/components/ViewModeToggle";
+import { viewModeAtom } from "@/features/preferences/application/atoms/viewModeAtom";
 
 const DANGER_TYPES = [
   { value: "FIRE", label: "화재" },
@@ -19,6 +22,7 @@ const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
 export default function AlertRulesPage() {
   const { rules, isLoading, refresh } = useAlertRules();
+  const viewMode = useAtomValue(viewModeAtom);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -77,9 +81,12 @@ export default function AlertRulesPage() {
             {rules.length}개 규칙
           </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? "취소" : "규칙 추가"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ViewModeToggle />
+          <Button onClick={() => setShowForm(!showForm)}>
+            {showForm ? "취소" : "규칙 추가"}
+          </Button>
+        </div>
       </div>
 
       {showForm && (
@@ -181,7 +188,7 @@ export default function AlertRulesPage() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className={viewMode === "card" ? "space-y-3" : "space-y-1.5"}>
         {isLoading ? (
           <div className="flex h-48 items-center justify-center text-muted-foreground">
             로딩 중...
@@ -190,7 +197,7 @@ export default function AlertRulesPage() {
           <div className="flex h-48 items-center justify-center text-muted-foreground">
             설정된 규칙이 없습니다
           </div>
-        ) : (
+        ) : viewMode === "card" ? (
           rules.map((rule) => (
             <div
               key={rule.id}
@@ -241,6 +248,48 @@ export default function AlertRulesPage() {
                   삭제
                 </Button>
               </div>
+            </div>
+          ))
+        ) : (
+          rules.map((rule) => (
+            <div
+              key={rule.id}
+              className="flex items-center gap-3 rounded-md border bg-card px-3 py-2 text-sm"
+            >
+              <span className="w-40 shrink-0 truncate font-medium">{rule.name}</span>
+              <span className="flex-1 truncate text-xs text-muted-foreground">
+                {rule.danger_types
+                  .map((dt) => DANGER_TYPES.find((d) => d.value === dt)?.label ?? dt)
+                  .join(", ")}
+                {rule.enable_face_recognition && (rule.danger_types.length ? " · " : "") + "얼굴 검색"}
+              </span>
+              <span className="w-24 shrink-0 text-right text-[11px] text-muted-foreground">
+                ≥ {rule.min_severity}
+              </span>
+              <span className="w-32 shrink-0 text-right text-[11px] text-muted-foreground">
+                {[
+                  rule.notify_websocket && "WS",
+                  rule.notify_mqtt && "MQTT",
+                  rule.notify_email && "Email",
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </span>
+              <span
+                className={`w-12 shrink-0 text-right text-[11px] ${
+                  rule.is_active ? "text-green-600" : "text-muted-foreground"
+                }`}
+              >
+                {rule.is_active ? "활성" : "비활성"}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-red-500 hover:text-red-700"
+                onClick={() => handleDelete(rule.id)}
+              >
+                삭제
+              </Button>
             </div>
           ))
         )}

@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useAtomValue } from "jotai";
 import { useEvents } from "@/features/event/application/hooks/useEvents";
 import type { EventItem } from "@/features/event/infrastructure/api/eventApi";
+import { ViewModeToggle } from "@/ui/components/ViewModeToggle";
+import { viewModeAtom } from "@/features/preferences/application/atoms/viewModeAtom";
 
 const typeLabels: Record<string, string> = {
   FACE_RECOGNIZED: "얼굴 인식",
@@ -48,6 +51,7 @@ function groupByDate(events: EventItem[]) {
 
 export default function EventsPage() {
   const { events, total, isLoading } = useEvents();
+  const viewMode = useAtomValue(viewModeAtom);
   const [filter, setFilter] = useState<string>("ALL");
 
   const filteredEvents =
@@ -64,6 +68,7 @@ export default function EventsPage() {
           <h2 className="text-2xl font-semibold">이벤트 이력</h2>
           <p className="mt-1 text-sm text-muted-foreground">총 {total}건</p>
         </div>
+        <ViewModeToggle />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -97,7 +102,7 @@ export default function EventsPage() {
           <div className="flex h-48 items-center justify-center text-muted-foreground">
             이벤트가 없습니다
           </div>
-        ) : (
+        ) : viewMode === "card" ? (
           <div className="space-y-6">
             {Object.entries(grouped).map(([date, dayEvents]) => (
               <div key={date}>
@@ -137,6 +142,38 @@ export default function EventsPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {filteredEvents.map((event) => (
+              <div
+                key={event.id}
+                className="flex items-center gap-3 rounded-md border bg-card px-3 py-2 text-sm"
+              >
+                <div
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${
+                    typeColors[event.event_type] ?? "bg-blue-100 text-blue-800"
+                  }`}
+                >
+                  {typeIcons[event.event_type] ?? "·"}
+                </div>
+                <span className="w-28 shrink-0 truncate font-medium">
+                  {typeLabels[event.event_type] ?? event.event_type}
+                </span>
+                <span className="flex-1 truncate text-xs text-muted-foreground">
+                  {event.description ?? ""}
+                </span>
+                <span className="w-36 shrink-0 text-right text-[11px] text-muted-foreground">
+                  {new Date(event.created_at).toLocaleString("ko-KR", {
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
+                </span>
               </div>
             ))}
           </div>

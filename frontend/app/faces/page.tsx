@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useIdentities } from "@/features/face/application/hooks/useIdentities";
 import { useFaceSuggestions } from "@/features/face/application/hooks/useFaceSuggestions";
 import { IdentityCard } from "@/features/face/ui/components/IdentityCard";
+import { IdentityListRow } from "@/features/face/ui/components/IdentityListRow";
 import { FaceSuggestionCard } from "@/features/face/ui/components/FaceSuggestionCard";
 import { RegisterIdentityDialog } from "@/features/face/ui/components/RegisterIdentityDialog";
 import { EditIdentityDialog } from "@/features/face/ui/components/EditIdentityDialog";
@@ -12,10 +13,14 @@ import { RecognitionLogList } from "@/features/face/ui/components/RecognitionLog
 import type { Identity } from "@/features/face/domain/model/face";
 import { env } from "@/infrastructure/config/env";
 import type { FaceSuggestion } from "@/features/face/infrastructure/api/faceApi";
+import { useAtomValue } from "jotai";
+import { ViewModeToggle } from "@/ui/components/ViewModeToggle";
+import { viewModeAtom } from "@/features/preferences/application/atoms/viewModeAtom";
 
 export default function FacesPage() {
   const { identities, isLoading, refresh } = useIdentities();
   const { suggestions, refresh: refreshSuggestions } = useFaceSuggestions();
+  const viewMode = useAtomValue(viewModeAtom);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [registerSeed, setRegisterSeed] = useState<{
     photoUrl: string | null;
@@ -52,7 +57,10 @@ export default function FacesPage() {
             {identities.length}명 등록됨
           </p>
         </div>
-        <Button onClick={openEmptyRegister}>인물 등록</Button>
+        <div className="flex items-center gap-2">
+          <ViewModeToggle />
+          <Button onClick={openEmptyRegister}>인물 등록</Button>
+        </div>
       </div>
 
       {suggestions.length > 0 && (
@@ -89,10 +97,16 @@ export default function FacesPage() {
           <div className="flex h-48 items-center justify-center text-muted-foreground">
             등록된 인물이 없습니다
           </div>
-        ) : (
+        ) : viewMode === "card" ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {identities.map((identity) => (
               <IdentityCard key={identity.id} identity={identity} onClick={() => setEditTarget(identity)} />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {identities.map((identity) => (
+              <IdentityListRow key={identity.id} identity={identity} onClick={() => setEditTarget(identity)} />
             ))}
           </div>
         )}
