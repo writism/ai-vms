@@ -33,6 +33,16 @@ export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
+  const activeHref = (() => {
+    const matches = navigation.filter((item) =>
+      item.href === "/"
+        ? pathname === "/"
+        : pathname === item.href || pathname.startsWith(item.href + "/"),
+    );
+    matches.sort((a, b) => b.href.length - a.href.length);
+    return matches[0]?.href;
+  })();
+
   return (
     <aside
       className={cn(
@@ -59,10 +69,7 @@ export function Sidebar({ className }: { className?: string }) {
       </div>
       <nav className="flex-1 space-y-1 p-2">
         {navigation.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+          const isActive = item.href === activeHref;
           const Icon = item.icon;
           return (
             <Link
