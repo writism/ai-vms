@@ -8,6 +8,17 @@ export interface UploadFacePhotoResponse {
   has_embedding: boolean;
 }
 
+export interface FaceSuggestion {
+  cluster_id: string;
+  image_url: string | null;
+  count_window: number;
+  avg_confidence: number;
+  last_seen: string;
+  last_camera_id: string | null;
+  quality_score: number;
+  status: string;
+}
+
 export const faceApi = {
   listIdentities: () => http.get<Identity[]>("/api/faces/identities"),
 
@@ -37,6 +48,16 @@ export const faceApi = {
 
   listRecognitionLogs: (limit = 20) =>
     http.get<RecognitionLog[]>(`/api/faces/recognition-logs`, { params: { limit: String(limit) } }),
+
+  listSuggestions: () => http.get<FaceSuggestion[]>("/api/faces/suggestions"),
+
+  registerSuggestion: (clusterId: string, identityId: string) =>
+    http.post(`/api/faces/suggestions/${clusterId}/register`, undefined, {
+      params: { identity_id: identityId },
+    }),
+
+  ignoreSuggestion: (clusterId: string) =>
+    http.post(`/api/faces/suggestions/${clusterId}/ignore`),
 
   uploadFacePhoto: async (identityId: string, file: File): Promise<UploadFacePhotoResponse> => {
     const formData = new FormData();

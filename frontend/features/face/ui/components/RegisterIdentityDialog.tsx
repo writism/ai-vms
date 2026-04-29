@@ -9,10 +9,14 @@ export function RegisterIdentityDialog({
   open,
   onClose,
   onRegistered,
+  prefilledPhotoUrl,
+  clusterId,
 }: {
   open: boolean;
   onClose: () => void;
   onRegistered: () => void;
+  prefilledPhotoUrl?: string | null;
+  clusterId?: string | null;
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState("EMPLOYEE");
@@ -21,7 +25,7 @@ export function RegisterIdentityDialog({
   const [company, setCompany] = useState("");
   const [visitPurpose, setVisitPurpose] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(prefilledPhotoUrl ?? null);
   const [webcamActive, setWebcamActive] = useState(false);
   const [webcamError, setWebcamError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -40,6 +44,13 @@ export function RegisterIdentityDialog({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open]);
+
+  useEffect(() => {
+    if (open && prefilledPhotoUrl && !photoPreview && !photoFile) {
+      setPhotoPreview(prefilledPhotoUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefilledPhotoUrl]);
 
   useEffect(() => {
     return () => stopWebcam();
@@ -127,6 +138,13 @@ export function RegisterIdentityDialog({
           setUploadError(e instanceof Error ? e.message : "사진 업로드에 실패했습니다");
           onRegistered();
           return;
+        }
+      }
+      if (clusterId) {
+        try {
+          await faceApi.registerSuggestion(clusterId, identityId);
+        } catch (e) {
+          console.warn("cluster register failed:", e);
         }
       }
       onRegistered();
