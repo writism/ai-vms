@@ -5,8 +5,10 @@ import logging
 from uuid import UUID
 
 from app.domains.camera.application.port.camera_repository_port import CameraRepositoryPort
+from app.domains.camera.application.service.camera_status_resolver import resolve_status_for_many
 from app.domains.camera.domain.entity.camera import CameraStatus
 from app.domains.face.application.usecase.recognition_log_usecase import CreateRecognitionLogUseCase
+from app.domains.stream.application.port.stream_port import StreamPort
 from app.infrastructure.ai.frame_capture import FrameCaptureService
 from app.infrastructure.ai.insightface_service import InsightFaceService
 from app.infrastructure.config.settings import settings
@@ -21,11 +23,13 @@ class FaceRecognitionWorker:
         frame_capture: FrameCaptureService,
         insightface: InsightFaceService,
         create_log_usecase: CreateRecognitionLogUseCase,
+        stream_port: StreamPort | None = None,
     ):
         self._camera_repo = camera_repo
         self._frame_capture = frame_capture
         self._insightface = insightface
         self._create_log = create_log_usecase
+        self._stream_port = stream_port
         self._prev_frames: dict[UUID, object] = {}
 
     async def process_camera(self, camera_id: UUID, rtsp_url: str) -> int:
@@ -69,12 +73,21 @@ class FaceRecognitionWorker:
 
     async def run_cycle(self) -> int:
         cameras = await self._camera_repo.find_all()
+        candidates = [c for c in cameras if c.rtsp_url]
+        if not candidates:
+            return -1
+
+        statuses = await resolve_status_for_many(candidates, self._stream_port)
         online_cameras = [
-            c for c in cameras
-            if c.status == CameraStatus.ONLINE and c.rtsp_url
+            cam for cam, status in zip(candidates, statuses)
+            if status == CameraStatus.ONLINE
         ]
 
         if not online_cameras:
+            logger.debug(
+                "Face recognition cycle: no ONLINE camera (candidates=%d)",
+                len(candidates),
+            )
             return -1
 
         total = 0

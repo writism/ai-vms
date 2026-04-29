@@ -29,6 +29,11 @@ def _rule_matches(event: DangerEvent, rule: AlertRule) -> bool:
 
 class NotificationDispatcher:
     async def dispatch(self, event: DangerEvent, rules: list[AlertRule]) -> int:
+        matching = sum(1 for r in rules if _rule_matches(event, r))
+        logger.info(
+            "dispatch event=%s severity=%s rules=%d matching=%d",
+            event.danger_type.value, event.severity.value, len(rules), matching,
+        )
         dispatched = 0
 
         for rule in rules:

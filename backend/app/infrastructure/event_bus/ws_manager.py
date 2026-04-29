@@ -20,14 +20,22 @@ class WebSocketManager:
 
     async def broadcast(self, data: dict) -> None:
         message = json.dumps(data)
+        msg_type = data.get("type") if isinstance(data, dict) else None
+        active = len(self._connections)
+        logger.info("ws broadcast type=%s active=%d", msg_type, active)
         disconnected: list[WebSocket] = []
+        sent = 0
         for ws in self._connections:
             try:
                 await ws.send_text(message)
-            except Exception:
+                sent += 1
+            except Exception as exc:
+                logger.warning("ws send failed: %s", exc)
                 disconnected.append(ws)
         for ws in disconnected:
             self._connections.remove(ws)
+        if active:
+            logger.info("ws broadcast sent=%d/%d (dropped=%d)", sent, active, len(disconnected))
 
     @property
     def connection_count(self) -> int:

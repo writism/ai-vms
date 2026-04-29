@@ -25,6 +25,7 @@ class _DbSessionWorker:
         self._running = True
 
     async def run_cycle(self) -> int:
+        from app.infrastructure.database import orm_models  # noqa: F401  ensure metadata
         from app.infrastructure.database.session import async_session_factory
         from app.domains.camera.adapter.outbound.persistence.sqlalchemy_camera_repository import SqlAlchemyCameraRepository
         from app.domains.face.adapter.outbound.persistence.sqlalchemy_identity_repository import SqlAlchemyIdentityRepository
@@ -33,9 +34,11 @@ class _DbSessionWorker:
         from app.domains.alert.adapter.outbound.persistence.sqlalchemy_danger_event_repository import SqlAlchemyDangerEventRepository
         from app.domains.face.adapter.outbound.external.qdrant_embedding_adapter import QdrantEmbeddingAdapter
         from app.domains.face.application.usecase.recognition_log_usecase import CreateRecognitionLogUseCase
+        from app.domains.stream.adapter.outbound.external.go2rtc_stream_adapter import Go2RtcStreamAdapter
         from app.infrastructure.event_bus.notification_dispatcher import notification_dispatcher
 
         embedding_store = QdrantEmbeddingAdapter()
+        stream_port = Go2RtcStreamAdapter()
 
         async with async_session_factory() as session:
             async with session.begin():
@@ -52,6 +55,7 @@ class _DbSessionWorker:
                         danger_event_repo=SqlAlchemyDangerEventRepository(session),
                         dispatcher=notification_dispatcher,
                     ),
+                    stream_port=stream_port,
                 )
                 worker._prev_frames = self._prev_frames
                 count = await worker.run_cycle()

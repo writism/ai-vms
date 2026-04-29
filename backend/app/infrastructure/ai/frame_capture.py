@@ -25,12 +25,18 @@ class FrameCaptureService:
     def __init__(self) -> None:
         self._captures: dict[str, object] = {}
 
+    def _resolve_url(self, rtsp_url: str, camera_id: str) -> str:
+        if settings.frame_capture_use_relay:
+            return f"rtsp://{settings.go2rtc_rtsp_host}:{settings.go2rtc_rtsp_port}/{camera_id}"
+        return rtsp_url.split("#")[0]
+
     async def capture_frame(self, rtsp_url: str, camera_id: str) -> CapturedFrame | None:
         try:
-            import cv2
-
-            loop = asyncio.get_event_loop()
-            frame = await loop.run_in_executor(None, self._read_frame, rtsp_url)
+            target = self._resolve_url(rtsp_url, camera_id)
+            frame = await self._read_frame_ffmpeg(target)
+            if frame is None and settings.frame_capture_use_relay:
+                await asyncio.sleep(0.5)
+                frame = await self._read_frame_ffmpeg(target)
             if frame is None:
                 return None
             return CapturedFrame(camera_id=camera_id, frame=frame)
@@ -38,23 +44,52 @@ class FrameCaptureService:
             logger.warning("Frame capture failed for camera %s: %s", camera_id, e)
             return None
 
-    def _read_frame(self, rtsp_url: str) -> np.ndarray | None:
+    async def _read_frame_ffmpeg(self, url: str) -> np.ndarray | None:
         import cv2
+        import numpy as np
 
-        clean_url = rtsp_url.split("#")[0]
-        cap = cv2.VideoCapture(clean_url, cv2.CAP_FFMPEG)
-        cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
-        cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
-        if not cap.isOpened():
-            logger.debug("RTSP open failed: %s", rtsp_url.split("@")[-1])
-            return None
+        cmd = [
+            "ffmpeg",
+            "-nostdin",
+            "-loglevel", "error",
+            "-rtsp_transport", "tcp",
+            "-stimeout", "8000000",
+            "-i", url,
+            "-map", "0:v",
+            "-frames:v", "1",
+            "-f", "image2pipe",
+            "-vcodec", "mjpeg",
+            "-",
+        ]
         try:
-            for _ in range(settings.frame_skip):
-                cap.grab()
-            ret, frame = cap.read()
-            return frame if ret else None
-        finally:
-            cap.release()
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=12)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                logger.debug("ffmpeg timeout: %s", url.split("@")[-1])
+                return None
+        except FileNotFoundError:
+            logger.error("ffmpeg binary not found in container — install required")
+            return None
+
+        if proc.returncode != 0 or not stdout:
+            logger.debug(
+                "ffmpeg capture failed (rc=%s): %s — %s",
+                proc.returncode,
+                url.split("@")[-1],
+                (stderr or b"").decode(errors="ignore").strip().splitlines()[-1:],
+            )
+            return None
+
+        arr = np.frombuffer(stdout, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        return frame
 
     async def capture_with_motion_gate(
         self,

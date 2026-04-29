@@ -33,17 +33,23 @@ class CreateRecognitionLogUseCase:
         self._dispatcher = dispatcher
 
     async def execute(self, camera_id: UUID, embedding: list[float], threshold: float = 0.55) -> RecognitionLogResponse:
-        results = await self._embedding_store.search(embedding=embedding, limit=1, threshold=threshold)
+        results = await self._embedding_store.search(embedding=embedding, limit=1, threshold=0.0)
+        top_score = results[0].score if results else 0.0
+        top_identity_id = results[0].identity_id if results else None
 
-        if results and results[0].identity_id:
-            match = results[0]
-            identity = await self._identity_repo.find_by_id(match.identity_id)
+        logger.info(
+            "Face search: camera=%s top_score=%.3f threshold=%.3f identity=%s",
+            camera_id, top_score, threshold, top_identity_id,
+        )
+
+        if results and top_identity_id and top_score >= threshold:
+            identity = await self._identity_repo.find_by_id(top_identity_id)
             log = RecognitionLog(
                 camera_id=camera_id,
-                identity_id=match.identity_id,
+                identity_id=top_identity_id,
                 identity_name=identity.name if identity else "Unknown",
                 identity_type=identity.identity_type.value if identity else "UNKNOWN",
-                confidence=match.score,
+                confidence=top_score,
                 is_registered=True,
             )
         else:
@@ -52,7 +58,7 @@ class CreateRecognitionLogUseCase:
                 identity_id=None,
                 identity_name="미등록 인물",
                 identity_type="UNKNOWN",
-                confidence=results[0].score if results else 0.0,
+                confidence=top_score,
                 is_registered=False,
             )
 

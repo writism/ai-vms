@@ -53,6 +53,7 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - CUDA_VISIBLE_DEVICES=0
       - LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda-12.4/lib64
+      - OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp
     volumes:
       - ../backend:/app
       - ../models:/app/models

@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     action_recognition_enabled: bool = True
     pose_model: str = "mediapipe"
 
+    frame_capture_use_relay: bool = True
+    go2rtc_rtsp_host: str = "localhost"
+    go2rtc_rtsp_port: int = 8554
+
     model_config = {"env_file": ("../.env", ".env"), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

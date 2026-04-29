@@ -1,7 +1,8 @@
 "use client";
 
-import { atom, getDefaultStore } from "jotai";
+import { atom } from "jotai";
 import { env } from "@/infrastructure/config/env";
+import { jotaiStore } from "@/infrastructure/jotai/store";
 
 export interface DangerEventNotification {
   id: string;
@@ -36,7 +37,6 @@ export const dangerEventsAtom = atom<DangerEventNotification[]>([]);
 export const recognitionEventsAtom = atom<RecognitionNotification[]>([]);
 export const wsConnectedAtom = atom<boolean>(false);
 
-const jotaiStore = typeof window !== "undefined" ? getDefaultStore() : null;
 
 let initialized = false;
 let ws: WebSocket | null = null;
@@ -59,32 +59,38 @@ function connect() {
     return;
   }
   ws.onopen = () => {
-    jotaiStore?.set(wsConnectedAtom, true);
+    jotaiStore.set(wsConnectedAtom, true);
+    console.debug("[notification] ws open");
   };
   ws.onclose = () => {
-    jotaiStore?.set(wsConnectedAtom, false);
+    jotaiStore.set(wsConnectedAtom, false);
+    console.debug("[notification] ws close");
     scheduleReconnect();
   };
   ws.onerror = () => {
     ws?.close();
   };
   ws.onmessage = (event) => {
-    if (!jotaiStore) return;
     try {
       const msg = JSON.parse(event.data);
+      console.debug("[notification] received type=", msg?.type, "id=", msg?.data?.id);
       if (msg.type === "DANGER_EVENT" && msg.data?.id) {
         const incoming = { ...(msg.data as Omit<DangerEventNotification, "read">), read: false };
         const current = jotaiStore.get(dangerEventsAtom);
         if (current.some((e) => e.id === incoming.id)) return;
-        jotaiStore.set(dangerEventsAtom, [incoming, ...current].slice(0, MAX_DANGER));
+        const next = [incoming, ...current].slice(0, MAX_DANGER);
+        jotaiStore.set(dangerEventsAtom, next);
+        console.debug("[notification] danger atom set, count=", next.length);
       } else if (msg.type === "recognition" && msg.data?.id) {
         const incoming = msg.data as RecognitionNotification;
         const current = jotaiStore.get(recognitionEventsAtom);
         if (current.some((e) => e.id === incoming.id)) return;
-        jotaiStore.set(recognitionEventsAtom, [incoming, ...current].slice(0, MAX_RECOG));
+        const next = [incoming, ...current].slice(0, MAX_RECOG);
+        jotaiStore.set(recognitionEventsAtom, next);
+        console.debug("[notification] recog atom set, count=", next.length);
       }
-    } catch {
-      // ignore malformed
+    } catch (e) {
+      console.warn("[notification] malformed message", e);
     }
   };
 }
@@ -97,7 +103,6 @@ export function ensureNotificationStream() {
 }
 
 export function markDangerRead(id: string) {
-  if (!jotaiStore) return;
   const list = jotaiStore.get(dangerEventsAtom);
   jotaiStore.set(
     dangerEventsAtom,
@@ -106,7 +111,6 @@ export function markDangerRead(id: string) {
 }
 
 export function markAllDangerRead() {
-  if (!jotaiStore) return;
   const list = jotaiStore.get(dangerEventsAtom);
   jotaiStore.set(
     dangerEventsAtom,

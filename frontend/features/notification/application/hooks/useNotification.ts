@@ -9,7 +9,7 @@ import {
   markAllDangerRead,
   markDangerRead,
   wsConnectedAtom,
-} from "../atoms/notificationStore";
+} from "@/features/notification/application/atoms/notificationStore";
 
 export type Notification = DangerEventNotification;
 
