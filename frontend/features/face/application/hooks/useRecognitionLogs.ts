@@ -26,6 +26,7 @@ export function useRecognitionLogs() {
     identity_type: r.identity_type,
     confidence: r.confidence,
     is_registered: r.is_registered,
+    image_url: (r as { image_url?: string | null }).image_url ?? null,
     created_at: r.created_at,
   }));
 

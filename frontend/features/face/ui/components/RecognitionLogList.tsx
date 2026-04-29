@@ -1,7 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useRecognitionLogs } from "../../application/hooks/useRecognitionLogs";
 import { cn } from "@/lib/utils";
+import {
+  RecognitionDetailDialog,
+  type RecognitionDetailData,
+} from "./RecognitionDetailDialog";
 
 const typeLabels: Record<string, string> = {
   EMPLOYEE: "임직원",
@@ -17,6 +22,7 @@ const typeColors: Record<string, string> = {
 
 export function RecognitionLogList() {
   const { logs, isLoading } = useRecognitionLogs();
+  const [detail, setDetail] = useState<RecognitionDetailData | null>(null);
 
   if (isLoading) {
     return (
@@ -35,34 +41,71 @@ export function RecognitionLogList() {
   }
 
   return (
-    <div className="space-y-2">
-      {logs.map((log) => (
-        <div
-          key={log.id}
-          className={cn(
-            "flex items-center justify-between rounded-lg border px-3 py-2 text-sm",
-            log.is_registered ? "border-border" : "border-yellow-500/30 bg-yellow-500/5",
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <span className={cn("font-medium", typeColors[log.identity_type] ?? "text-gray-400")}>
-              [{typeLabels[log.identity_type] ?? log.identity_type}]
-            </span>
-            <span className="font-semibold">{log.identity_name}</span>
-          </div>
-          <div className="flex items-center gap-3 text-muted-foreground">
-            <span className={cn(
-              "font-mono",
-              log.confidence >= 80 ? "text-green-400" : log.confidence >= 60 ? "text-yellow-400" : "text-red-400",
-            )}>
-              {log.confidence.toFixed(1)}%
-            </span>
-            <span className="text-xs">
-              {new Date(log.created_at).toLocaleTimeString("ko-KR")}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="space-y-2">
+        {logs.map((log) => {
+          const confPct =
+            log.confidence > 1 ? log.confidence : log.confidence * 100;
+          return (
+            <button
+              type="button"
+              key={log.id}
+              onClick={() =>
+                setDetail({
+                  title: log.identity_name,
+                  subtitle: typeLabels[log.identity_type] ?? log.identity_type,
+                  imageUrl: log.image_url ?? null,
+                  cameraId: log.camera_id,
+                  occurredAt: log.created_at,
+                  confidencePct: confPct,
+                  isRegistered: log.is_registered,
+                })
+              }
+              className={cn(
+                "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-secondary/40",
+                log.is_registered
+                  ? "border-border"
+                  : "border-yellow-500/30 bg-yellow-500/5",
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "font-medium",
+                    typeColors[log.identity_type] ?? "text-gray-400",
+                  )}
+                >
+                  [{typeLabels[log.identity_type] ?? log.identity_type}]
+                </span>
+                <span className="font-semibold">{log.identity_name}</span>
+              </div>
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <span
+                  className={cn(
+                    "font-mono",
+                    confPct >= 80
+                      ? "text-green-400"
+                      : confPct >= 60
+                        ? "text-yellow-400"
+                        : "text-red-400",
+                  )}
+                >
+                  {confPct.toFixed(1)}%
+                </span>
+                <span className="text-xs">
+                  {new Date(log.created_at).toLocaleTimeString("ko-KR")}
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <RecognitionDetailDialog
+        open={detail !== null}
+        onClose={() => setDetail(null)}
+        data={detail}
+      />
+    </>
   );
 }

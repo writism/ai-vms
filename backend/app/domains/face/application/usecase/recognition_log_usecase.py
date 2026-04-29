@@ -95,6 +95,8 @@ class CreateRecognitionLogUseCase:
 
         saved = await self._log_repo.save(log)
 
+        image_url = f"/{saved.image_path}" if saved.image_path else None
+
         response = RecognitionLogResponse(
             id=saved.id,
             camera_id=saved.camera_id,
@@ -103,6 +105,7 @@ class CreateRecognitionLogUseCase:
             identity_type=saved.identity_type,
             confidence=saved.confidence,
             is_registered=saved.is_registered,
+            image_url=image_url,
             created_at=saved.created_at,
         )
 
@@ -115,6 +118,7 @@ class CreateRecognitionLogUseCase:
                 "identity_type": saved.identity_type,
                 "confidence": round(saved.confidence * 100, 1),
                 "is_registered": saved.is_registered,
+                "image_url": image_url,
                 "created_at": saved.created_at.isoformat(),
             },
         })
@@ -171,6 +175,7 @@ class ListRecognitionLogsUseCase:
                 identity_type=log.identity_type,
                 confidence=log.confidence,
                 is_registered=log.is_registered,
+                image_url=f"/{log.image_path}" if log.image_path else None,
                 created_at=log.created_at,
             )
             for log in logs

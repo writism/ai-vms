@@ -4,6 +4,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { env } from "@/infrastructure/config/env";
 import { faceApi, type FaceSuggestion } from "../../infrastructure/api/faceApi";
+import {
+  RecognitionDetailDialog,
+  type RecognitionDetailData,
+} from "./RecognitionDetailDialog";
 
 export function FaceSuggestionCard({
   suggestion,
@@ -15,6 +19,7 @@ export function FaceSuggestionCard({
   onResolved: () => void;
 }) {
   const [ignoring, setIgnoring] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const photoUrl = suggestion.image_url
     ? `${env.apiUrl}${suggestion.image_url}`
     : null;
@@ -28,7 +33,8 @@ export function FaceSuggestionCard({
     ? suggestion.last_camera_id.slice(0, 8)
     : "-";
 
-  const handleIgnore = async () => {
+  const handleIgnore = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm("이 후보를 무시하시겠습니까? (24시간 동안 재추천되지 않습니다)")) return;
     setIgnoring(true);
     try {
@@ -39,8 +45,31 @@ export function FaceSuggestionCard({
     }
   };
 
+  const handleRegister = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRegister(suggestion);
+  };
+
+  const detailData: RecognitionDetailData = {
+    title: "미등록 후보",
+    subtitle: `24시간 내 ${suggestion.count_window}회 검출`,
+    imageUrl: suggestion.image_url ?? null,
+    cameraId: suggestion.last_camera_id,
+    occurredAt: suggestion.last_seen,
+    confidencePct: suggestion.avg_confidence * 100,
+    isRegistered: false,
+    extras: [
+      { label: "검출 횟수", value: `${suggestion.count_window}회 (24h)` },
+      { label: "품질", value: suggestion.quality_score.toFixed(2) },
+    ],
+  };
+
   return (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+    <>
+    <div
+      onClick={() => setDetailOpen(true)}
+      className="cursor-pointer rounded-lg border border-amber-300 bg-amber-50 p-3 transition-colors hover:bg-amber-100/70 dark:border-amber-800 dark:bg-amber-950/40 dark:hover:bg-amber-900/40"
+    >
       <div className="flex items-center gap-3">
         {photoUrl ? (
           <img
@@ -69,10 +98,17 @@ export function FaceSuggestionCard({
         <Button size="sm" variant="outline" onClick={handleIgnore} disabled={ignoring}>
           {ignoring ? "처리 중..." : "무시"}
         </Button>
-        <Button size="sm" onClick={() => onRegister(suggestion)}>
+        <Button size="sm" onClick={handleRegister}>
           등록
         </Button>
       </div>
     </div>
+
+    <RecognitionDetailDialog
+      open={detailOpen}
+      onClose={() => setDetailOpen(false)}
+      data={detailData}
+    />
+    </>
   );
 }

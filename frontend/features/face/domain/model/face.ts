@@ -20,5 +20,6 @@ export interface RecognitionLog {
   identity_type: string;
   confidence: number;
   is_registered: boolean;
+  image_url?: string | null;
   created_at: string;
 }

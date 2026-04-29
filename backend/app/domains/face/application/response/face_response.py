@@ -53,6 +53,7 @@ class RecognitionLogResponse(BaseModel):
     identity_type: str
     confidence: float
     is_registered: bool
+    image_url: str | None = None
     created_at: datetime
 
 

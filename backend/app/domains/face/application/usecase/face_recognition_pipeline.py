@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import uuid as uuid_mod
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.domains.camera.application.port.camera_repository_port import CameraRepositoryPort
@@ -10,10 +13,43 @@ from app.domains.camera.domain.entity.camera import CameraStatus
 from app.domains.face.application.usecase.recognition_log_usecase import CreateRecognitionLogUseCase
 from app.domains.stream.application.port.stream_port import StreamPort
 from app.infrastructure.ai.frame_capture import FrameCaptureService
-from app.infrastructure.ai.insightface_service import InsightFaceService
+from app.infrastructure.ai.insightface_service import DetectedFace, InsightFaceService
 from app.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+SNAPSHOT_DIR = "uploads/snapshots"
+
+
+def _save_face_snapshot(frame, face: DetectedFace) -> str | None:
+    try:
+        import cv2
+
+        h, w = frame.shape[:2]
+        x1, y1, x2, y2 = face.bbox
+        # add 25% padding around the face for context
+        bw = x2 - x1
+        bh = y2 - y1
+        px = int(bw * 0.25)
+        py = int(bh * 0.25)
+        cx1 = max(0, x1 - px)
+        cy1 = max(0, y1 - py)
+        cx2 = min(w, x2 + px)
+        cy2 = min(h, y2 + py)
+        crop = frame[cy1:cy2, cx1:cx2]
+        if crop.size == 0:
+            return None
+
+        date_dir = datetime.now(UTC).strftime("%Y%m%d")
+        target_dir = os.path.join(SNAPSHOT_DIR, date_dir)
+        os.makedirs(target_dir, exist_ok=True)
+        filename = f"{uuid_mod.uuid4()}.jpg"
+        relative_path = os.path.join(target_dir, filename)
+        cv2.imwrite(relative_path, crop, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
+        return relative_path
+    except Exception as exc:
+        logger.warning("snapshot save failed: %s", exc)
+        return None
 
 
 class FaceRecognitionWorker:
@@ -59,12 +95,13 @@ class FaceRecognitionWorker:
             if face.quality_score < settings.face_quality_threshold:
                 logger.debug("Face skipped (low quality=%.2f): camera=%s", face.quality_score, camera_id)
                 continue
+            snapshot_path = _save_face_snapshot(captured.frame, face)
             try:
                 await self._create_log.execute(
                     camera_id=camera_id,
                     embedding=face.embedding,
                     threshold=settings.recognition_threshold,
-                    image_path=None,
+                    image_path=snapshot_path,
                     quality_score=face.quality_score,
                 )
                 recognized += 1
