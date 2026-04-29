@@ -6,6 +6,22 @@ from app.domains.face.domain.entity.recognition_log import RecognitionLog
 from app.domains.face.infrastructure.orm.face_orm import RecognitionLogORM
 
 
+def _to_entity(orm: RecognitionLogORM) -> RecognitionLog:
+    return RecognitionLog(
+        id=orm.id,
+        camera_id=orm.camera_id,
+        identity_id=orm.identity_id,
+        identity_name=orm.identity_name,
+        identity_type=orm.identity_type,
+        confidence=orm.confidence,
+        is_registered=orm.is_registered,
+        embedding=list(orm.embedding) if orm.embedding is not None else None,
+        image_path=orm.image_path,
+        cluster_id=orm.cluster_id,
+        created_at=orm.created_at,
+    )
+
+
 class SqlAlchemyRecognitionLogRepository(RecognitionLogPort):
     def __init__(self, session: AsyncSession):
         self._session = session
@@ -19,9 +35,12 @@ class SqlAlchemyRecognitionLogRepository(RecognitionLogPort):
             identity_type=log.identity_type,
             confidence=log.confidence,
             is_registered=log.is_registered,
+            embedding=log.embedding,
+            image_path=log.image_path,
+            cluster_id=log.cluster_id,
             created_at=log.created_at,
         )
-        merged = await self._session.merge(orm)
+        await self._session.merge(orm)
         await self._session.flush()
         return log
 
@@ -29,16 +48,4 @@ class SqlAlchemyRecognitionLogRepository(RecognitionLogPort):
         result = await self._session.execute(
             select(RecognitionLogORM).order_by(RecognitionLogORM.created_at.desc()).limit(limit)
         )
-        return [
-            RecognitionLog(
-                id=orm.id,
-                camera_id=orm.camera_id,
-                identity_id=orm.identity_id,
-                identity_name=orm.identity_name,
-                identity_type=orm.identity_type,
-                confidence=orm.confidence,
-                is_registered=orm.is_registered,
-                created_at=orm.created_at,
-            )
-            for orm in result.scalars().all()
-        ]
+        return [_to_entity(orm) for orm in result.scalars().all()]

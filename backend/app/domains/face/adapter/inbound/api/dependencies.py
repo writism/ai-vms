@@ -7,6 +7,10 @@ from app.domains.face.adapter.outbound.persistence.in_memory_identity_repository
 from app.domains.face.application.port.face_repository_port import FaceRepositoryPort
 from app.domains.face.application.port.identity_repository_port import IdentityRepositoryPort
 from app.domains.face.application.usecase.face_search_usecase import RegisterFaceUseCase, SearchFaceUseCase
+from app.domains.face.application.usecase.face_suggestion_usecase import (
+    ListFaceSuggestionsUseCase,
+    ResolveFaceSuggestionUseCase,
+)
 from app.domains.face.application.usecase.identity_usecase import (
     DeleteIdentityUseCase,
     GetIdentityUseCase,
@@ -83,3 +87,20 @@ def get_list_recognition_logs_usecase(session: AsyncSession | None = Depends(_ge
         return ListRecognitionLogsUseCase(SqlAlchemyRecognitionLogRepository(session))
     from app.domains.face.adapter.outbound.persistence.sqlalchemy_recognition_log_repository import SqlAlchemyRecognitionLogRepository
     raise RuntimeError("Recognition logs require database")
+
+
+def _get_cluster_repo(session: AsyncSession | None = None):
+    if settings.use_database and session:
+        from app.domains.face.adapter.outbound.persistence.sqlalchemy_face_cluster_repository import (
+            SqlAlchemyFaceClusterRepository,
+        )
+        return SqlAlchemyFaceClusterRepository(session)
+    raise RuntimeError("Face cluster suggestions require database")
+
+
+def get_list_face_suggestions_usecase(session: AsyncSession | None = Depends(_get_session)) -> ListFaceSuggestionsUseCase:
+    return ListFaceSuggestionsUseCase(_get_cluster_repo(session))
+
+
+def get_resolve_face_suggestion_usecase(session: AsyncSession | None = Depends(_get_session)) -> ResolveFaceSuggestionUseCase:
+    return ResolveFaceSuggestionUseCase(_get_cluster_repo(session))

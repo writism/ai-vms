@@ -9,10 +9,12 @@ from app.domains.face.adapter.inbound.api.dependencies import (
     get_delete_identity_usecase,
     get_face_repo,
     get_identity_usecase,
+    get_list_face_suggestions_usecase,
     get_list_identities_usecase,
     get_list_recognition_logs_usecase,
     get_register_face_usecase,
     get_register_identity_usecase,
+    get_resolve_face_suggestion_usecase,
     get_search_face_usecase,
     get_update_identity_usecase,
 )
@@ -23,8 +25,17 @@ from app.domains.face.application.request.face_request import (
     UpdateIdentityRequest,
 )
 from app.domains.face.application.port.face_repository_port import FaceRepositoryPort
-from app.domains.face.application.response.face_response import FaceMatchResponse, IdentityResponse, RecognitionLogResponse
+from app.domains.face.application.response.face_response import (
+    FaceMatchResponse,
+    FaceSuggestionResponse,
+    IdentityResponse,
+    RecognitionLogResponse,
+)
 from app.domains.face.application.usecase.face_search_usecase import RegisterFaceUseCase, SearchFaceUseCase
+from app.domains.face.application.usecase.face_suggestion_usecase import (
+    ListFaceSuggestionsUseCase,
+    ResolveFaceSuggestionUseCase,
+)
 from app.domains.face.application.usecase.identity_usecase import (
     DeleteIdentityUseCase,
     GetIdentityUseCase,
@@ -166,3 +177,31 @@ async def list_recognition_logs(
     usecase: ListRecognitionLogsUseCase = Depends(get_list_recognition_logs_usecase),
 ) -> list[RecognitionLogResponse]:
     return await usecase.execute(limit)
+
+
+@router.get("/suggestions", response_model=list[FaceSuggestionResponse])
+async def list_face_suggestions(
+    usecase: ListFaceSuggestionsUseCase = Depends(get_list_face_suggestions_usecase),
+) -> list[FaceSuggestionResponse]:
+    return await usecase.execute()
+
+
+@router.post("/suggestions/{cluster_id}/register", status_code=204)
+async def register_face_suggestion(
+    cluster_id: UUID,
+    identity_id: UUID,
+    usecase: ResolveFaceSuggestionUseCase = Depends(get_resolve_face_suggestion_usecase),
+) -> None:
+    ok = await usecase.register(cluster_id, identity_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="cluster not found")
+
+
+@router.post("/suggestions/{cluster_id}/ignore", status_code=204)
+async def ignore_face_suggestion(
+    cluster_id: UUID,
+    usecase: ResolveFaceSuggestionUseCase = Depends(get_resolve_face_suggestion_usecase),
+) -> None:
+    ok = await usecase.ignore(cluster_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="cluster not found")

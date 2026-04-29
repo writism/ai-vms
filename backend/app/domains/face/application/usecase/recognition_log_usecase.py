@@ -8,6 +8,7 @@ from app.domains.face.application.port.face_embedding_port import FaceEmbeddingP
 from app.domains.face.application.port.identity_repository_port import IdentityRepositoryPort
 from app.domains.face.application.port.recognition_log_port import RecognitionLogPort
 from app.domains.face.application.response.face_response import RecognitionLogResponse
+from app.domains.face.application.service.face_cluster_service import FaceClusterService
 from app.domains.face.domain.entity.recognition_log import RecognitionLog
 from app.infrastructure.event_bus.notification_dispatcher import NotificationDispatcher
 from app.infrastructure.event_bus.ws_manager import ws_manager
@@ -24,6 +25,7 @@ class CreateRecognitionLogUseCase:
         alert_rule_repo: AlertRuleRepositoryPort | None = None,
         danger_event_repo: DangerEventRepositoryPort | None = None,
         dispatcher: NotificationDispatcher | None = None,
+        cluster_service: FaceClusterService | None = None,
     ):
         self._log_repo = log_repo
         self._identity_repo = identity_repo
@@ -31,8 +33,16 @@ class CreateRecognitionLogUseCase:
         self._alert_rule_repo = alert_rule_repo
         self._danger_event_repo = danger_event_repo
         self._dispatcher = dispatcher
+        self._cluster_service = cluster_service
 
-    async def execute(self, camera_id: UUID, embedding: list[float], threshold: float = 0.55) -> RecognitionLogResponse:
+    async def execute(
+        self,
+        camera_id: UUID,
+        embedding: list[float],
+        threshold: float = 0.55,
+        image_path: str | None = None,
+        quality_score: float = 0.0,
+    ) -> RecognitionLogResponse:
         results = await self._embedding_store.search(embedding=embedding, limit=1, threshold=0.0)
         top_score = results[0].score if results else 0.0
         top_identity_id = results[0].identity_id if results else None
@@ -42,7 +52,22 @@ class CreateRecognitionLogUseCase:
             camera_id, top_score, threshold, top_identity_id,
         )
 
-        if results and top_identity_id and top_score >= threshold:
+        cluster_id: UUID | None = None
+        is_registered = bool(results and top_identity_id and top_score >= threshold)
+
+        if not is_registered and self._cluster_service is not None:
+            try:
+                cluster = await self._cluster_service.cluster_face(
+                    embedding=embedding,
+                    image_path=image_path,
+                    quality_score=quality_score,
+                    camera_id=camera_id,
+                )
+                cluster_id = cluster.id
+            except Exception as exc:
+                logger.warning("face cluster failed: %s", exc)
+
+        if is_registered:
             identity = await self._identity_repo.find_by_id(top_identity_id)
             log = RecognitionLog(
                 camera_id=camera_id,
@@ -51,6 +76,9 @@ class CreateRecognitionLogUseCase:
                 identity_type=identity.identity_type.value if identity else "UNKNOWN",
                 confidence=top_score,
                 is_registered=True,
+                embedding=embedding,
+                image_path=image_path,
+                cluster_id=cluster_id,
             )
         else:
             log = RecognitionLog(
@@ -60,6 +88,9 @@ class CreateRecognitionLogUseCase:
                 identity_type="UNKNOWN",
                 confidence=top_score,
                 is_registered=False,
+                embedding=embedding,
+                image_path=image_path,
+                cluster_id=cluster_id,
             )
 
         saved = await self._log_repo.save(log)

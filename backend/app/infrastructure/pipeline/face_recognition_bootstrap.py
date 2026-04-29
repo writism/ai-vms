@@ -33,6 +33,10 @@ class _DbSessionWorker:
         from app.domains.alert.adapter.outbound.persistence.sqlalchemy_alert_rule_repository import SqlAlchemyAlertRuleRepository
         from app.domains.alert.adapter.outbound.persistence.sqlalchemy_danger_event_repository import SqlAlchemyDangerEventRepository
         from app.domains.face.adapter.outbound.external.qdrant_embedding_adapter import QdrantEmbeddingAdapter
+        from app.domains.face.adapter.outbound.persistence.sqlalchemy_face_cluster_repository import (
+            SqlAlchemyFaceClusterRepository,
+        )
+        from app.domains.face.application.service.face_cluster_service import FaceClusterService
         from app.domains.face.application.usecase.recognition_log_usecase import CreateRecognitionLogUseCase
         from app.domains.stream.adapter.outbound.external.go2rtc_stream_adapter import Go2RtcStreamAdapter
         from app.infrastructure.event_bus.notification_dispatcher import notification_dispatcher
@@ -43,6 +47,7 @@ class _DbSessionWorker:
         async with async_session_factory() as session:
             async with session.begin():
                 camera_repo = SqlAlchemyCameraRepository(session)
+                cluster_service = FaceClusterService(SqlAlchemyFaceClusterRepository(session))
                 worker = FaceRecognitionWorker(
                     camera_repo=camera_repo,
                     frame_capture=frame_capture_service,
@@ -54,6 +59,7 @@ class _DbSessionWorker:
                         alert_rule_repo=SqlAlchemyAlertRuleRepository(session),
                         danger_event_repo=SqlAlchemyDangerEventRepository(session),
                         dispatcher=notification_dispatcher,
+                        cluster_service=cluster_service,
                     ),
                     stream_port=stream_port,
                 )

@@ -64,6 +64,8 @@ class FaceRecognitionWorker:
                     camera_id=camera_id,
                     embedding=face.embedding,
                     threshold=settings.recognition_threshold,
+                    image_path=None,
+                    quality_score=face.quality_score,
                 )
                 recognized += 1
             except Exception as e:

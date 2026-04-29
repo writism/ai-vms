@@ -11,5 +11,8 @@ class RecognitionLog:
     identity_type: str
     confidence: float
     is_registered: bool = True
+    embedding: list[float] | None = None
+    image_path: str | None = None
+    cluster_id: UUID | None = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

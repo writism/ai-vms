@@ -54,3 +54,14 @@ class RecognitionLogResponse(BaseModel):
     confidence: float
     is_registered: bool
     created_at: datetime
+
+
+class FaceSuggestionResponse(BaseModel):
+    cluster_id: UUID
+    image_url: str | None
+    count_window: int
+    avg_confidence: float
+    last_seen: datetime
+    last_camera_id: UUID | None
+    quality_score: float
+    status: str

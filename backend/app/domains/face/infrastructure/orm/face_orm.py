@@ -18,7 +18,25 @@ class RecognitionLogORM(Base):
     identity_type: Mapped[str] = mapped_column(String(20))
     confidence: Mapped[float] = mapped_column(Float)
     is_registered: Mapped[bool] = mapped_column(Boolean, default=True)
+    embedding: Mapped[list[float] | None] = mapped_column(ARRAY(Float), nullable=True)
+    image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    cluster_id: Mapped[UUID | None] = mapped_column(ForeignKey("face_clusters.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FaceClusterORM(Base):
+    __tablename__ = "face_clusters"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    representative_embedding: Mapped[list[float]] = mapped_column(ARRAY(Float))
+    representative_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    representative_quality_score: Mapped[float] = mapped_column(Float, default=0.0)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_camera_id: Mapped[UUID | None] = mapped_column(ForeignKey("cameras.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="PENDING")
+    linked_identity_id: Mapped[UUID | None] = mapped_column(ForeignKey("identities.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class IdentityORM(Base):

@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     go2rtc_rtsp_host: str = "localhost"
     go2rtc_rtsp_port: int = 8554
 
+    cluster_similarity_threshold: float = 0.55
+    cluster_recommend_threshold: int = 5
+    cluster_window_hours: int = 24
+
     model_config = {"env_file": ("../.env", ".env"), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

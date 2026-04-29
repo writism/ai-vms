@@ -1,6 +1,7 @@
 from app.domains.face.domain.entity.face import Face
+from app.domains.face.domain.entity.face_cluster import ClusterStatus, FaceCluster
 from app.domains.face.domain.entity.identity import Identity, IdentityType
-from app.domains.face.infrastructure.orm.face_orm import FaceORM, IdentityORM
+from app.domains.face.infrastructure.orm.face_orm import FaceClusterORM, FaceORM, IdentityORM
 
 
 class IdentityMapper:
@@ -65,4 +66,36 @@ class FaceMapper:
             image_path=entity.image_path,
             quality_score=entity.quality_score,
             created_at=entity.created_at,
+        )
+
+
+class FaceClusterMapper:
+    @staticmethod
+    def to_entity(orm: FaceClusterORM) -> FaceCluster:
+        return FaceCluster(
+            id=orm.id,
+            representative_embedding=list(orm.representative_embedding),
+            representative_image_path=orm.representative_image_path,
+            representative_quality_score=orm.representative_quality_score,
+            last_seen=orm.last_seen,
+            last_camera_id=orm.last_camera_id,
+            status=ClusterStatus(orm.status),
+            linked_identity_id=orm.linked_identity_id,
+            created_at=orm.created_at,
+            updated_at=orm.updated_at,
+        )
+
+    @staticmethod
+    def to_orm(entity: FaceCluster) -> FaceClusterORM:
+        return FaceClusterORM(
+            id=entity.id,
+            representative_embedding=entity.representative_embedding,
+            representative_image_path=entity.representative_image_path,
+            representative_quality_score=entity.representative_quality_score,
+            last_seen=entity.last_seen,
+            last_camera_id=entity.last_camera_id,
+            status=entity.status.value,
+            linked_identity_id=entity.linked_identity_id,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
         )
