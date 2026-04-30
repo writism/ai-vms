@@ -139,7 +139,7 @@ async def health_check():
     from app.infrastructure.ai.insightface_service import insightface_service
     from app.infrastructure.ai.yolo_service import yolo_service
     from app.infrastructure.event_bus.mqtt_client import mqtt_client
-    from app.infrastructure.pipeline.face_recognition_bootstrap import _scheduler
+    from app.infrastructure.pipeline.face_recognition_bootstrap import _engine as _scheduler
 
     async def check_turn() -> bool:
         try:

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRecognitionLogs } from "../../application/hooks/useRecognitionLogs";
 import { cn } from "@/lib/utils";
+import { formatTimeOnly } from "../lib/format-time";
 import {
   RecognitionDetailDialog,
   type RecognitionDetailData,
@@ -21,7 +22,7 @@ const typeColors: Record<string, string> = {
 };
 
 export function RecognitionLogList() {
-  const { logs, isLoading } = useRecognitionLogs();
+  const { logs, isLoading, refresh } = useRecognitionLogs();
   const [detail, setDetail] = useState<RecognitionDetailData | null>(null);
 
   if (isLoading) {
@@ -52,6 +53,7 @@ export function RecognitionLogList() {
               key={log.id}
               onClick={() =>
                 setDetail({
+                  logId: log.id,
                   title: log.identity_name,
                   subtitle: typeLabels[log.identity_type] ?? log.identity_type,
                   imageUrl: log.image_url ?? null,
@@ -89,11 +91,12 @@ export function RecognitionLogList() {
                         ? "text-yellow-400"
                         : "text-red-400",
                   )}
+                  title="일치도 (embedding 코사인 유사도)"
                 >
                   {confPct.toFixed(1)}%
                 </span>
                 <span className="text-xs">
-                  {new Date(log.created_at).toLocaleTimeString("ko-KR")}
+                  {formatTimeOnly(log.created_at)}
                 </span>
               </div>
             </button>
@@ -105,6 +108,10 @@ export function RecognitionLogList() {
         open={detail !== null}
         onClose={() => setDetail(null)}
         data={detail}
+        onAssigned={() => {
+          refresh?.();
+          setDetail(null);
+        }}
       />
     </>
   );

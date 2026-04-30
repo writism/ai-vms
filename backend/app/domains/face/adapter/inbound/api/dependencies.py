@@ -104,3 +104,10 @@ def get_list_face_suggestions_usecase(session: AsyncSession | None = Depends(_ge
 
 def get_resolve_face_suggestion_usecase(session: AsyncSession | None = Depends(_get_session)) -> ResolveFaceSuggestionUseCase:
     return ResolveFaceSuggestionUseCase(_get_cluster_repo(session))
+
+
+def get_cluster_snapshot_repo(session: AsyncSession | None = Depends(_get_session)):
+    if settings.use_database and session:
+        from app.domains.face.adapter.outbound.persistence.sqlalchemy_recognition_log_repository import SqlAlchemyRecognitionLogRepository
+        return SqlAlchemyRecognitionLogRepository(session)
+    raise RuntimeError("Cluster snapshots require database")

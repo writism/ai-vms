@@ -54,6 +54,7 @@ services:
       - CUDA_VISIBLE_DEVICES=0
       - LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda-12.4/lib64
       - OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp
+      # 튜닝값은 루트 .env 파일에서 관리
     volumes:
       - ../backend:/app
       - ../models:/app/models

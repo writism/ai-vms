@@ -17,6 +17,7 @@ class Identity:
     employee_id: str | None = None
     company: str | None = None
     visit_purpose: str | None = None
+    position: str | None = None
     notes: str | None = None
     face_image_url: str | None = None
     is_active: bool = True

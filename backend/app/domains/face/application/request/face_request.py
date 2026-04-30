@@ -7,6 +7,7 @@ class RegisterIdentityRequest(BaseModel):
     identity_type: str = "EMPLOYEE"
     department: str | None = None
     employee_id: str | None = None
+    position: str | None = None
     company: str | None = None
     visit_purpose: str | None = None
     notes: str | None = None
@@ -17,6 +18,7 @@ class UpdateIdentityRequest(BaseModel):
     identity_type: str | None = None
     department: str | None = None
     employee_id: str | None = None
+    position: str | None = None
     company: str | None = None
     visit_purpose: str | None = None
     notes: str | None = None

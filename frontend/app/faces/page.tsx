@@ -9,7 +9,6 @@ import { IdentityListRow } from "@/features/face/ui/components/IdentityListRow";
 import { FaceSuggestionCard } from "@/features/face/ui/components/FaceSuggestionCard";
 import { RegisterIdentityDialog } from "@/features/face/ui/components/RegisterIdentityDialog";
 import { EditIdentityDialog } from "@/features/face/ui/components/EditIdentityDialog";
-import { RecognitionLogList } from "@/features/face/ui/components/RecognitionLogList";
 import type { Identity } from "@/features/face/domain/model/face";
 import { env } from "@/infrastructure/config/env";
 import type { FaceSuggestion } from "@/features/face/infrastructure/api/faceApi";
@@ -110,16 +109,6 @@ export default function FacesPage() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="mt-8">
-        <h3 className="text-lg font-semibold">인식 로그</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          카메라에서 검출된 인물 인식 이력
-        </p>
-        <div className="mt-4">
-          <RecognitionLogList />
-        </div>
       </div>
 
       <RegisterIdentityDialog

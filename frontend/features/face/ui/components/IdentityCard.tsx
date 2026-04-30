@@ -42,7 +42,12 @@ export function IdentityCard({ identity, onClick }: { identity: Identity; onClic
           </div>
         )}
         <div className="flex flex-1 items-center justify-between">
-          <h3 className="font-semibold">{identity.name}</h3>
+          <div>
+            <h3 className="font-semibold">{identity.name}</h3>
+            {identity.position && (
+              <p className="text-xs text-muted-foreground">{identity.position}</p>
+            )}
+          </div>
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-xs font-medium",

@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.face.application.port.face_cluster_repository_port import (
@@ -27,13 +27,29 @@ class SqlAlchemyFaceClusterRepository(FaceClusterRepositoryPort):
         orm = await self._session.get(FaceClusterORM, cluster_id)
         return FaceClusterMapper.to_entity(orm) if orm else None
 
-    async def find_active_pending(self) -> list[FaceCluster]:
+    async def find_active_pending(self, window_days: int = 7) -> list[FaceCluster]:
+        since = datetime.now(UTC) - timedelta(days=window_days)
         result = await self._session.execute(
             select(FaceClusterORM)
-            .where(FaceClusterORM.status == ClusterStatus.PENDING.value)
+            .where(
+                FaceClusterORM.status == ClusterStatus.PENDING.value,
+                FaceClusterORM.last_seen >= since,
+            )
             .order_by(FaceClusterORM.last_seen.desc())
         )
         return [FaceClusterMapper.to_entity(orm) for orm in result.scalars().all()]
+
+    async def merge_into(self, source_id: UUID, target_id: UUID) -> None:
+        """source 클러스터의 모든 로그를 target으로 재연결 후 source를 IGNORED 처리."""
+        await self._session.execute(
+            update(RecognitionLogORM)
+            .where(RecognitionLogORM.cluster_id == source_id)
+            .values(cluster_id=target_id)
+        )
+        source_orm = await self._session.get(FaceClusterORM, source_id)
+        if source_orm:
+            source_orm.status = ClusterStatus.IGNORED.value
+        await self._session.flush()
 
     async def update(self, cluster: FaceCluster) -> FaceCluster:
         orm = await self._session.get(FaceClusterORM, cluster.id)
@@ -61,6 +77,28 @@ class SqlAlchemyFaceClusterRepository(FaceClusterRepositoryPort):
             orm.linked_identity_id = linked_identity_id
         await self._session.flush()
         return True
+
+    async def count_members(self, cluster_id: UUID) -> int:
+        result = await self._session.execute(
+            select(func.count(RecognitionLogORM.id)).where(
+                RecognitionLogORM.cluster_id == cluster_id
+            )
+        )
+        return int(result.scalar() or 0)
+
+    async def find_recent_member_embeddings(
+        self, cluster_id: UUID, limit: int
+    ) -> list[list[float]]:
+        result = await self._session.execute(
+            select(RecognitionLogORM.embedding)
+            .where(
+                RecognitionLogORM.cluster_id == cluster_id,
+                RecognitionLogORM.embedding.isnot(None),
+            )
+            .order_by(RecognitionLogORM.created_at.desc())
+            .limit(limit)
+        )
+        return [list(row[0]) for row in result.all() if row[0]]
 
     async def find_suggestions(self, min_count: int, since: datetime) -> list[ClusterSuggestion]:
         count_col = func.count(RecognitionLogORM.id).label("count_window")

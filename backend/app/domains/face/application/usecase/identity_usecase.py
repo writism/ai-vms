@@ -14,11 +14,23 @@ class RegisterIdentityUseCase:
         self._repo = repo
 
     async def execute(self, request: RegisterIdentityRequest) -> IdentityResponse:
+        # 중복 체크: 이름+사번 우선, 사번 없으면 이름만으로 체크
+        name_stripped = request.name.strip()
+        if request.employee_id and request.employee_id.strip():
+            existing = await self._repo.find_by_name_and_employee_id(
+                name_stripped, request.employee_id.strip()
+            )
+        else:
+            existing = await self._repo.find_by_name(name_stripped)
+        if existing is not None:
+            return IdentityResponse.from_entity(existing, is_duplicate=True)
+
         identity = Identity(
             name=request.name,
             identity_type=IdentityType(request.identity_type),
             department=request.department,
             employee_id=request.employee_id,
+            position=request.position,
             company=request.company,
             visit_purpose=request.visit_purpose,
             notes=request.notes,
@@ -67,6 +79,8 @@ class UpdateIdentityUseCase:
             identity.company = request.company or None
         if request.visit_purpose is not None:
             identity.visit_purpose = request.visit_purpose or None
+        if request.position is not None:
+            identity.position = request.position or None
         if request.notes is not None:
             identity.notes = request.notes or None
         identity.updated_at = datetime.now(UTC)

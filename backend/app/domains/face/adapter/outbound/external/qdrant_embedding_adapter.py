@@ -2,7 +2,14 @@ import logging
 from uuid import UUID
 
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
 from app.domains.face.application.port.face_embedding_port import EmbeddingSearchResult, FaceEmbeddingPort
 from app.infrastructure.config.settings import settings
@@ -70,3 +77,23 @@ class QdrantEmbeddingAdapter(FaceEmbeddingPort):
             points_selector=[str(face_id)],
         )
         return True
+
+    async def count_by_identity(self, identity_id: UUID) -> int:
+        client = await self._get_client()
+        try:
+            result = await client.count(
+                collection_name=COLLECTION_NAME,
+                count_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="identity_id",
+                            match=MatchValue(value=str(identity_id)),
+                        )
+                    ]
+                ),
+                exact=True,
+            )
+            return int(result.count)
+        except Exception as exc:
+            logger.warning("count_by_identity failed: %s", exc)
+            return 0

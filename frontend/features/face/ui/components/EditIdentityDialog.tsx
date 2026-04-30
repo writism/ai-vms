@@ -20,6 +20,7 @@ export function EditIdentityDialog({
   const [type, setType] = useState(identity.identity_type);
   const [department, setDepartment] = useState(identity.department ?? "");
   const [employeeId, setEmployeeId] = useState(identity.employee_id ?? "");
+  const [position, setPosition] = useState(identity.position ?? "");
   const [company, setCompany] = useState(identity.company ?? "");
   const [visitPurpose, setVisitPurpose] = useState(identity.visit_purpose ?? "");
   const existingPhotoUrl = identity.face_image_url ? `${env.apiUrl}${identity.face_image_url}` : null;
@@ -98,6 +99,7 @@ export function EditIdentityDialog({
         identity_type: type,
         department: type === "EMPLOYEE" ? department || undefined : undefined,
         employee_id: type === "EMPLOYEE" ? employeeId || undefined : undefined,
+        position: type === "EMPLOYEE" ? position || undefined : undefined,
         company: type === "VISITOR" ? company || undefined : undefined,
         visit_purpose: type === "VISITOR" ? visitPurpose || undefined : undefined,
       });
@@ -140,10 +142,10 @@ export function EditIdentityDialog({
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl border border-border bg-card shadow-2xl"
       >
         {confirmDelete ? (
-          <div className="space-y-4">
+          <div className="space-y-4 p-6">
             <h2 className="text-lg font-semibold text-red-400">인물 삭제 확인</h2>
             <p className="text-sm text-muted-foreground">
               <strong>{identity.name}</strong>을(를) 삭제하시겠습니까?
@@ -164,9 +166,11 @@ export function EditIdentityDialog({
           </div>
         ) : (
           <>
-            <h2 className="text-lg font-semibold">인물 편집</h2>
+            <div className="shrink-0 px-6 pt-6">
+              <h2 className="text-lg font-semibold">인물 편집</h2>
+            </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 flex-1 overflow-y-auto px-6 space-y-3">
               <div>
                 <label className="text-sm font-medium">이름 *</label>
                 <input
@@ -206,6 +210,16 @@ export function EditIdentityDialog({
                       value={employeeId}
                       onChange={(e) => setEmployeeId(e.target.value)}
                       className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">직위/직급</label>
+                    <input
+                      type="text"
+                      value={position}
+                      onChange={(e) => setPosition(e.target.value)}
+                      className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="예: 과장, 선임연구원"
                     />
                   </div>
                 </>
@@ -262,7 +276,7 @@ export function EditIdentityDialog({
                     </div>
                   ) : photoPreview ? (
                     <div className="relative">
-                      <img src={photoPreview} alt="새 사진 미리보기" className="w-full rounded-md border border-border" />
+                      <img src={photoPreview} alt="새 사진 미리보기" className="max-h-64 w-full rounded-md border border-border object-contain" />
                       <button
                         type="button"
                         onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
@@ -274,7 +288,7 @@ export function EditIdentityDialog({
                   ) : (
                     <div className="space-y-2">
                       {existingPhotoUrl && (
-                        <img src={existingPhotoUrl} alt="등록된 사진" className="w-full rounded-md border border-border" />
+                        <img src={existingPhotoUrl} alt="등록된 사진" className="max-h-64 w-full rounded-md border border-border object-contain" />
                       )}
                       {webcamError && (
                         <p className="text-xs text-red-400">{webcamError}</p>
@@ -307,7 +321,7 @@ export function EditIdentityDialog({
               </div>
             </div>
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="mt-4 shrink-0 flex items-center justify-between border-t border-border px-6 py-4">
               <Button
                 variant="destructive"
                 onClick={() => setConfirmDelete(true)}

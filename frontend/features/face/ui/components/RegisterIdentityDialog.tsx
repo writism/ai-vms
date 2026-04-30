@@ -22,8 +22,10 @@ export function RegisterIdentityDialog({
   const [type, setType] = useState("EMPLOYEE");
   const [department, setDepartment] = useState("");
   const [employeeId, setEmployeeId] = useState("");
+  const [position, setPosition] = useState("");
   const [company, setCompany] = useState("");
   const [visitPurpose, setVisitPurpose] = useState("");
+  const [isDuplicate, setIsDuplicate] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(prefilledPhotoUrl ?? null);
   const [webcamActive, setWebcamActive] = useState(false);
@@ -118,15 +120,33 @@ export function RegisterIdentityDialog({
           identity_type: type,
           department: type === "EMPLOYEE" ? department || undefined : undefined,
           employee_id: type === "EMPLOYEE" ? employeeId || undefined : undefined,
+          position: type === "EMPLOYEE" ? position || undefined : undefined,
           company: type === "VISITOR" ? company || undefined : undefined,
           visit_purpose: type === "VISITOR" ? visitPurpose || undefined : undefined,
         });
         identityId = identity.id;
         setCreatedIdentityId(identityId);
+        if (identity.is_duplicate) {
+          setIsDuplicate(true);
+        }
       }
-      if (photoFile) {
+      // photoFile이 없어도 prefilledPhotoUrl(클러스터 스냅샷)이 있으면 fetch→File로 변환하여 업로드
+      let fileToUpload = photoFile;
+      if (!fileToUpload && photoPreview && prefilledPhotoUrl && photoPreview === prefilledPhotoUrl) {
         try {
-          const result = await faceApi.uploadFacePhoto(identityId, photoFile);
+          const fullUrl = photoPreview.startsWith("http")
+            ? photoPreview
+            : `${(await import("@/infrastructure/config/env")).env.apiUrl}${photoPreview}`;
+          const res = await fetch(fullUrl);
+          const blob = await res.blob();
+          fileToUpload = new File([blob], "prefilled.jpg", { type: blob.type || "image/jpeg" });
+        } catch {
+          // 변환 실패 시 업로드 없이 계속
+        }
+      }
+      if (fileToUpload) {
+        try {
+          const result = await faceApi.uploadFacePhoto(identityId, fileToUpload);
           if (!result.has_embedding) {
             setEmbeddingWarning(
               "얼굴이 검출되지 않았습니다. 정면이 선명하게 보이는 다른 사진으로 다시 시도하세요.",
@@ -159,6 +179,8 @@ export function RegisterIdentityDialog({
     setType("EMPLOYEE");
     setDepartment("");
     setEmployeeId("");
+    setPosition("");
+    setIsDuplicate(false);
     setCompany("");
     setVisitPurpose("");
     setPhotoFile(null);
@@ -177,7 +199,7 @@ export function RegisterIdentityDialog({
     }
   };
 
-  const identityLocked = createdIdentityId !== null;
+  const identityLocked = createdIdentityId !== null || isDuplicate;
   const submitLabel = submitting
     ? "등록 중..."
     : identityLocked
@@ -191,17 +213,24 @@ export function RegisterIdentityDialog({
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl border border-border bg-card shadow-2xl"
       >
-        <h2 className="text-lg font-semibold">인물 등록</h2>
+        <div className="shrink-0 px-6 pt-6">
+          <h2 className="text-lg font-semibold">인물 등록</h2>
 
-        {identityLocked && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            인물 정보는 이미 등록되었습니다. 사진만 다시 선택하면 검출을 재시도합니다.
-          </p>
-        )}
+          {isDuplicate && (
+            <p className="mt-2 rounded border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-300">
+              이미 등록된 인물입니다. 얼굴 사진만 추가하여 인식에 활용합니다.
+            </p>
+          )}
+          {identityLocked && !isDuplicate && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              인물 정보는 이미 등록되었습니다. 사진만 다시 선택하면 검출을 재시도합니다.
+            </p>
+          )}
+        </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 flex-1 overflow-y-auto px-6 space-y-3">
           <div>
             <label className="text-sm font-medium">이름 *</label>
             <input
@@ -246,6 +275,17 @@ export function RegisterIdentityDialog({
                   onChange={(e) => setEmployeeId(e.target.value)}
                   disabled={identityLocked}
                   className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">직위/직급</label>
+                <input
+                  type="text"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                  disabled={identityLocked}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                  placeholder="예: 과장, 선임연구원"
                 />
               </div>
             </>
@@ -304,7 +344,7 @@ export function RegisterIdentityDialog({
                 </div>
               ) : photoPreview ? (
                 <div className="relative">
-                  <img src={photoPreview} alt="미리보기" className="w-full rounded-md border border-border" />
+                  <img src={photoPreview} alt="미리보기" className="max-h-64 w-full rounded-md border border-border object-contain" />
                   <button
                     type="button"
                     onClick={() => {
@@ -356,13 +396,13 @@ export function RegisterIdentityDialog({
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-4 shrink-0 flex justify-end gap-2 border-t border-border px-6 py-4">
           <Button variant="outline" onClick={handleClose}>
             {identityLocked ? "닫기" : "취소"}
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !name.trim() || (identityLocked && !photoFile)}
+            disabled={submitting || !name.trim() || (identityLocked && !photoFile && !photoPreview)}
           >
             {submitLabel}
           </Button>

@@ -6,6 +6,7 @@ import { useEvents } from "@/features/event/application/hooks/useEvents";
 import type { EventItem } from "@/features/event/infrastructure/api/eventApi";
 import { ViewModeToggle } from "@/ui/components/ViewModeToggle";
 import { viewModeAtom } from "@/features/preferences/application/atoms/viewModeAtom";
+import { RecognitionLogList } from "@/features/face/ui/components/RecognitionLogList";
 
 const typeLabels: Record<string, string> = {
   FACE_RECOGNIZED: "얼굴 인식",
@@ -34,6 +35,14 @@ const typeColors: Record<string, string> = {
   ACCESS_DENIED: "bg-orange-100 text-orange-800",
 };
 
+const FILTERS = [
+  { value: "ALL", label: "전체" },
+  { value: "FACE_LOG", label: "얼굴인식 로그" },
+  { value: "DANGER_DETECTED", label: "위험 감지" },
+  { value: "CAMERA_ONLINE", label: "카메라 온라인" },
+  { value: "CAMERA_OFFLINE", label: "카메라 오프라인" },
+];
+
 function groupByDate(events: EventItem[]) {
   const groups: Record<string, EventItem[]> = {};
   for (const event of events) {
@@ -54,10 +63,14 @@ export default function EventsPage() {
   const viewMode = useAtomValue(viewModeAtom);
   const [filter, setFilter] = useState<string>("ALL");
 
+  const isFaceLog = filter === "FACE_LOG";
+
   const filteredEvents =
     filter === "ALL"
       ? events
-      : events.filter((e) => e.event_type === filter);
+      : isFaceLog
+        ? []
+        : events.filter((e) => e.event_type === filter);
 
   const grouped = groupByDate(filteredEvents);
 
@@ -66,19 +79,15 @@ export default function EventsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold">이벤트 이력</h2>
-          <p className="mt-1 text-sm text-muted-foreground">총 {total}건</p>
+          {!isFaceLog && (
+            <p className="mt-1 text-sm text-muted-foreground">총 {total}건</p>
+          )}
         </div>
-        <ViewModeToggle />
+        {!isFaceLog && <ViewModeToggle />}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {[
-          { value: "ALL", label: "전체" },
-          { value: "FACE_RECOGNIZED", label: "얼굴 인식" },
-          { value: "DANGER_DETECTED", label: "위험 감지" },
-          { value: "CAMERA_ONLINE", label: "카메라 온라인" },
-          { value: "CAMERA_OFFLINE", label: "카메라 오프라인" },
-        ].map((f) => (
+        {FILTERS.map((f) => (
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
@@ -94,7 +103,9 @@ export default function EventsPage() {
       </div>
 
       <div className="mt-6">
-        {isLoading ? (
+        {isFaceLog ? (
+          <RecognitionLogList />
+        ) : isLoading ? (
           <div className="flex h-48 items-center justify-center text-muted-foreground">
             로딩 중...
           </div>

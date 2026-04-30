@@ -26,3 +26,15 @@ class InMemoryIdentityRepository(IdentityRepositoryPort):
 
     async def delete(self, identity_id: UUID) -> bool:
         return self._store.pop(identity_id, None) is not None
+
+    async def find_by_name_and_employee_id(self, name: str, employee_id: str) -> Identity | None:
+        for identity in self._store.values():
+            if identity.name == name and identity.employee_id == employee_id:
+                return identity
+        return None
+
+    async def find_by_name(self, name: str) -> Identity | None:
+        for identity in self._store.values():
+            if identity.name == name:
+                return identity
+        return None

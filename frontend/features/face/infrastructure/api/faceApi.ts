@@ -19,6 +19,23 @@ export interface FaceSuggestion {
   status: string;
 }
 
+export interface ClusterSnapshot {
+  log_id: string;
+  image_url: string;
+  confidence: number;
+  created_at: string;
+}
+
+export interface SimilarIdentity {
+  identity_id: string;
+  name: string;
+  position: string | null;
+  department: string | null;
+  identity_type: string;
+  face_image_url: string | null;
+  score: number;
+}
+
 export const faceApi = {
   listIdentities: () => http.get<Identity[]>("/api/faces/identities"),
 
@@ -29,6 +46,7 @@ export const faceApi = {
     identity_type?: string;
     department?: string;
     employee_id?: string;
+    position?: string;
     company?: string;
     visit_purpose?: string;
     notes?: string;
@@ -39,6 +57,7 @@ export const faceApi = {
     identity_type?: string;
     department?: string;
     employee_id?: string;
+    position?: string;
     company?: string;
     visit_purpose?: string;
     notes?: string;
@@ -58,6 +77,23 @@ export const faceApi = {
 
   ignoreSuggestion: (clusterId: string) =>
     http.post(`/api/faces/suggestions/${clusterId}/ignore`),
+
+  getClusterSnapshots: (clusterId: string, limit = 50) =>
+    http.get<ClusterSnapshot[]>(`/api/faces/clusters/${clusterId}/snapshots`, {
+      params: { limit: String(limit) },
+    }),
+
+  matchRecognitionLog: (logId: string, limit = 5) =>
+    http.get<SimilarIdentity[]>(`/api/faces/recognition-logs/${logId}/match`, {
+      params: { limit: String(limit) },
+    }),
+
+  assignRecognitionLog: (logId: string, identityId: string) =>
+    http.post<{ assigned: number; identity_name: string }>(
+      `/api/faces/recognition-logs/${logId}/assign`,
+      undefined,
+      { params: { identity_id: identityId } },
+    ),
 
   uploadFacePhoto: async (identityId: string, file: File): Promise<UploadFacePhotoResponse> => {
     const formData = new FormData();

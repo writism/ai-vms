@@ -19,3 +19,6 @@ class FaceEmbeddingPort(ABC):
 
     @abstractmethod
     async def delete(self, face_id: UUID) -> bool: ...
+
+    @abstractmethod
+    async def count_by_identity(self, identity_id: UUID) -> int: ...

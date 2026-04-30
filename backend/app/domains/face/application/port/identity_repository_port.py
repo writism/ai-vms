@@ -19,3 +19,9 @@ class IdentityRepositoryPort(ABC):
 
     @abstractmethod
     async def delete(self, identity_id: UUID) -> bool: ...
+
+    @abstractmethod
+    async def find_by_name_and_employee_id(self, name: str, employee_id: str) -> Identity | None: ...
+
+    @abstractmethod
+    async def find_by_name(self, name: str) -> Identity | None: ...

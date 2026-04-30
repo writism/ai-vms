@@ -4,12 +4,14 @@ export interface Identity {
   identity_type: "EMPLOYEE" | "VISITOR";
   department: string | null;
   employee_id: string | null;
+  position: string | null;
   company: string | null;
   visit_purpose: string | null;
   notes: string | null;
   face_image_url: string | null;
   is_active: boolean;
   created_at: string;
+  is_duplicate?: boolean;
 }
 
 export interface RecognitionLog {

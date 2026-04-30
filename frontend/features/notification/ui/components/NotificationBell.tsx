@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Bell } from "lucide-react";
 import { useNotification } from "../../application/hooks/useNotification";
 import { cn } from "@/lib/utils";
+import { formatTimestamp } from "../../../face/ui/lib/format-time";
 
 const dangerTypeLabels: Record<string, string> = {
   FACE_RECOGNIZED: "얼굴 인식",
@@ -77,13 +78,7 @@ export function NotificationBell() {
                         [{n.severity}] {label}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
-                        {new Date(n.created_at).toLocaleString("ko-KR", {
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
+                        {formatTimestamp(n.created_at)}
                       </span>
                     </div>
                     {n.description && (

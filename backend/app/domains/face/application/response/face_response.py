@@ -12,27 +12,31 @@ class IdentityResponse(BaseModel):
     identity_type: IdentityType
     department: str | None
     employee_id: str | None
+    position: str | None
     company: str | None
     visit_purpose: str | None
     notes: str | None
     face_image_url: str | None
     is_active: bool
     created_at: datetime
+    is_duplicate: bool = False
 
     @staticmethod
-    def from_entity(entity: Identity) -> "IdentityResponse":
+    def from_entity(entity: Identity, is_duplicate: bool = False) -> "IdentityResponse":
         return IdentityResponse(
             id=entity.id,
             name=entity.name,
             identity_type=entity.identity_type,
             department=entity.department,
             employee_id=entity.employee_id,
+            position=entity.position,
             company=entity.company,
             visit_purpose=entity.visit_purpose,
             notes=entity.notes,
             face_image_url=entity.face_image_url,
             is_active=entity.is_active,
             created_at=entity.created_at,
+            is_duplicate=is_duplicate,
         )
 
 
@@ -66,3 +70,20 @@ class FaceSuggestionResponse(BaseModel):
     last_camera_id: UUID | None
     quality_score: float
     status: str
+
+
+class ClusterSnapshotResponse(BaseModel):
+    log_id: UUID
+    image_url: str
+    confidence: float
+    created_at: datetime
+
+
+class SimilarIdentityResponse(BaseModel):
+    identity_id: UUID
+    name: str
+    position: str | None
+    department: str | None
+    identity_type: str
+    face_image_url: str | None
+    score: float

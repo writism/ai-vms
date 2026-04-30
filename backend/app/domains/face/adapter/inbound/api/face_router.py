@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from app.domains.face.adapter.inbound.api.dependencies import (
+    get_cluster_snapshot_repo,
     get_delete_identity_usecase,
     get_face_repo,
     get_identity_usecase,
@@ -18,6 +19,7 @@ from app.domains.face.adapter.inbound.api.dependencies import (
     get_search_face_usecase,
     get_update_identity_usecase,
 )
+from app.domains.face.application.port.recognition_log_port import RecognitionLogPort
 from app.domains.face.application.request.face_request import (
     RegisterFaceRequest,
     RegisterIdentityRequest,
@@ -26,10 +28,12 @@ from app.domains.face.application.request.face_request import (
 )
 from app.domains.face.application.port.face_repository_port import FaceRepositoryPort
 from app.domains.face.application.response.face_response import (
+    ClusterSnapshotResponse,
     FaceMatchResponse,
     FaceSuggestionResponse,
     IdentityResponse,
     RecognitionLogResponse,
+    SimilarIdentityResponse,
 )
 from app.domains.face.application.usecase.face_search_usecase import RegisterFaceUseCase, SearchFaceUseCase
 from app.domains.face.application.usecase.face_suggestion_usecase import (
@@ -131,7 +135,7 @@ async def upload_face_photo(
             import io
             img = Image.open(io.BytesIO(content)).convert("RGB")
             frame = np.array(img)
-            faces = await insightface_service.detect_and_embed(frame)
+            faces = await insightface_service.detect_and_embed_for_registration(frame)
             if faces:
                 embedding = faces[0].embedding
                 quality_score = faces[0].quality_score
@@ -205,3 +209,98 @@ async def ignore_face_suggestion(
     ok = await usecase.ignore(cluster_id)
     if not ok:
         raise HTTPException(status_code=404, detail="cluster not found")
+
+
+@router.get("/recognition-logs/{log_id}/match", response_model=list[SimilarIdentityResponse])
+async def match_recognition_log(
+    log_id: UUID,
+    limit: int = 5,
+    log_repo: RecognitionLogPort = Depends(get_cluster_snapshot_repo),
+    identity_usecase: ListIdentitiesUseCase = Depends(get_list_identities_usecase),
+) -> list[SimilarIdentityResponse]:
+    """미등록 로그의 embedding으로 Qdrant 검색 → 유사 등록 인물 반환."""
+    from app.domains.face.adapter.outbound.external.qdrant_embedding_adapter import QdrantEmbeddingAdapter
+
+    log = await log_repo.find_by_id(log_id)
+    if log is None:
+        raise HTTPException(status_code=404, detail="log not found")
+    if not log.embedding:
+        return []
+
+    store = QdrantEmbeddingAdapter()
+    results = await store.search(embedding=log.embedding, limit=limit, threshold=0.0)
+    identity_results = [r for r in results if r.identity_id is not None]
+    if not identity_results:
+        return []
+
+    # identity별 최고 score만 남김
+    best: dict = {}
+    for r in identity_results:
+        iid = str(r.identity_id)
+        if iid not in best or r.score > best[iid].score:
+            best[iid] = r
+
+    identities = await identity_usecase.execute()
+    identity_map = {str(i.id): i for i in identities}
+
+    out: list[SimilarIdentityResponse] = []
+    for r in sorted(best.values(), key=lambda x: x.score, reverse=True)[:limit]:
+        idt = identity_map.get(str(r.identity_id))
+        if idt is None:
+            continue
+        out.append(SimilarIdentityResponse(
+            identity_id=idt.id,
+            name=idt.name,
+            position=idt.position,
+            department=idt.department,
+            identity_type=idt.identity_type.value,
+            face_image_url=idt.face_image_url,
+            score=round(r.score * 100, 1),
+        ))
+    return out
+
+
+@router.post("/recognition-logs/{log_id}/assign", status_code=200)
+async def assign_recognition_log(
+    log_id: UUID,
+    identity_id: UUID,
+    log_repo: RecognitionLogPort = Depends(get_cluster_snapshot_repo),
+    identity_usecase: GetIdentityUseCase = Depends(get_identity_usecase),
+) -> dict:
+    """미등록 로그(및 동일 cluster)를 기존 identity에 매칭 등록."""
+    log = await log_repo.find_by_id(log_id)
+    if log is None:
+        raise HTTPException(status_code=404, detail="log not found")
+
+    identity = await identity_usecase.execute(identity_id)
+    if identity is None:
+        raise HTTPException(status_code=404, detail="identity not found")
+
+    if log.cluster_id:
+        count = await log_repo.assign_cluster_to_identity(
+            cluster_id=log.cluster_id,
+            identity_id=identity_id,
+            identity_name=identity.name,
+            identity_type=identity.identity_type.value,
+        )
+    else:
+        count = 0
+    return {"assigned": count, "identity_name": identity.name}
+
+
+@router.get("/clusters/{cluster_id}/snapshots", response_model=list[ClusterSnapshotResponse])
+async def get_cluster_snapshots(
+    cluster_id: UUID,
+    limit: int = 50,
+    log_repo: RecognitionLogPort = Depends(get_cluster_snapshot_repo),
+) -> list[ClusterSnapshotResponse]:
+    logs = await log_repo.find_by_cluster(cluster_id, limit)
+    return [
+        ClusterSnapshotResponse(
+            log_id=log.id,
+            image_url=f"/{log.image_path}",
+            confidence=log.confidence,
+            created_at=log.created_at,
+        )
+        for log in logs
+    ]

@@ -31,7 +31,12 @@ export function IdentityListRow({ identity, onClick }: { identity: Identity; onC
           {identity.name.charAt(0)}
         </div>
       )}
-      <span className="w-32 truncate font-semibold">{identity.name}</span>
+      <div className="flex w-36 shrink-0 flex-col">
+        <span className="truncate font-semibold">{identity.name}</span>
+        {identity.position && (
+          <span className="truncate text-[11px] text-muted-foreground">{identity.position}</span>
+        )}
+      </div>
       <span
         className={cn(
           "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
