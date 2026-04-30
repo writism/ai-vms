@@ -345,6 +345,10 @@ class _FaceRecognitionEngine:
         from app.domains.face.application.usecase.recognition_log_usecase import (
             CreateRecognitionLogUseCase,
         )
+        from app.domains.event.domain.entity.event import Event, EventType
+        from app.domains.event.adapter.outbound.persistence.sqlalchemy_event_repository import (
+            SqlAlchemyEventRepository,
+        )
         from app.infrastructure.database import orm_models  # noqa: F401
         from app.infrastructure.database.session import async_session_factory
         from app.infrastructure.event_bus.notification_dispatcher import (
@@ -385,6 +389,7 @@ class _FaceRecognitionEngine:
                     dispatcher=notification_dispatcher,
                     cluster_service=cluster_service,
                 )
+                event_repo = SqlAlchemyEventRepository(session)
 
                 loop = asyncio.get_event_loop()
                 for face in usable:
@@ -395,13 +400,31 @@ class _FaceRecognitionEngine:
                         logger.debug("recognition log skipped — no snapshot camera=%s", camera_id)
                         continue
                     try:
-                        await usecase.execute(
+                        response = await usecase.execute(
                             camera_id=camera_id,
                             embedding=face.embedding,
                             threshold=settings.recognition_threshold,
                             image_path=snapshot_path,
                             quality_score=face.quality_score,
                         )
+                        event_type = (
+                            EventType.FACE_RECOGNIZED
+                            if response.is_registered
+                            else EventType.FACE_UNIDENTIFIED
+                        )
+                        cam_short = str(camera_id)[:8]
+                        if response.is_registered:
+                            conf_pct = response.confidence * 100 if response.confidence <= 1.0 else response.confidence
+                            desc = f"{response.identity_name} 인식 (cam: {cam_short}, {conf_pct:.1f}%)"
+                        else:
+                            desc = f"미등록 인물 감지 (cam: {cam_short})"
+                        await event_repo.save(Event(
+                            event_type=event_type,
+                            camera_id=camera_id,
+                            identity_id=response.identity_id,
+                            description=desc,
+                            snapshot_path=snapshot_path,
+                        ))
                     except Exception as exc:
                         logger.warning(
                             "recognition log failed camera=%s: %s", camera_id, exc

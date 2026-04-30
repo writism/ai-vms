@@ -29,8 +29,9 @@ const typeIcons: Record<string, string> = {
 };
 
 const typeColors: Record<string, string> = {
-  DANGER_DETECTED: "bg-red-100 text-red-800",
+  FACE_RECOGNIZED: "bg-blue-100 text-blue-800",
   FACE_UNIDENTIFIED: "bg-yellow-100 text-yellow-800",
+  DANGER_DETECTED: "bg-red-100 text-red-800",
   CAMERA_OFFLINE: "bg-gray-100 text-gray-800",
   ACCESS_DENIED: "bg-orange-100 text-orange-800",
 };
