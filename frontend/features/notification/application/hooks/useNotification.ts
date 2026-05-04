@@ -13,15 +13,18 @@ import {
 
 export type Notification = DangerEventNotification;
 
+const EXCLUDED_FROM_BELL = new Set(["FACE_RECOGNIZED", "FACE_UNIDENTIFIED"]);
+
 export function useNotification() {
   useEffect(() => {
     ensureNotificationStream();
   }, []);
   const events = useAtomValue(dangerEventsAtom);
   const connected = useAtomValue(wsConnectedAtom);
-  const unreadCount = events.filter((e) => !e.read).length;
+  const notifications = events.filter((e) => !EXCLUDED_FROM_BELL.has(e.danger_type));
+  const unreadCount = notifications.filter((e) => !e.read).length;
   return {
-    notifications: events,
+    notifications,
     unreadCount,
     connected,
     markRead: markDangerRead,
