@@ -79,6 +79,20 @@ class SqlAlchemyRecognitionLogRepository(RecognitionLogPort):
         await self._session.flush()
         return result.rowcount
 
+    async def delete_by_id(self, log_id: UUID) -> bool:
+        orm = await self._session.get(RecognitionLogORM, log_id)
+        if orm is None:
+            return False
+        if orm.image_path:
+            import os
+            try:
+                os.remove(orm.image_path)
+            except OSError:
+                pass
+        await self._session.delete(orm)
+        await self._session.flush()
+        return True
+
     async def find_by_cluster(self, cluster_id: UUID, limit: int = 50) -> list["RecognitionLog"]:
         result = await self._session.execute(
             select(RecognitionLogORM)

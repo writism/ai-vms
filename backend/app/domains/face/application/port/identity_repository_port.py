@@ -25,3 +25,6 @@ class IdentityRepositoryPort(ABC):
 
     @abstractmethod
     async def find_by_name(self, name: str) -> Identity | None: ...
+
+    @abstractmethod
+    async def find_by_ids(self, ids: list[UUID]) -> list[Identity]: ...

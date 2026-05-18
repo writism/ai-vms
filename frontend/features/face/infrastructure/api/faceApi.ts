@@ -36,6 +36,23 @@ export interface SimilarIdentity {
   score: number;
 }
 
+export interface FaceDetail {
+  face_id: string;
+  image_url: string | null;
+  quality_score: number;
+  created_at: string;
+  is_outlier: boolean;
+}
+
+export interface OutlierSnapshot {
+  log_id: string;
+  image_url: string;
+  confidence: number;
+  created_at: string;
+  is_outlier: boolean;
+  similarity_to_mean: number;
+}
+
 export const faceApi = {
   listIdentities: () => http.get<Identity[]>("/api/faces/identities"),
 
@@ -94,6 +111,20 @@ export const faceApi = {
       undefined,
       { params: { identity_id: identityId } },
     ),
+
+  deleteClusterSnapshot: (clusterId: string, logId: string) =>
+    http.delete(`/api/faces/clusters/${clusterId}/snapshots/${logId}`),
+
+  getClusterOutliers: (clusterId: string, threshold = 0.75) =>
+    http.get<OutlierSnapshot[]>(`/api/faces/clusters/${clusterId}/outliers`, {
+      params: { threshold: String(threshold) },
+    }),
+
+  listIdentityFaces: (identityId: string) =>
+    http.get<FaceDetail[]>(`/api/faces/identities/${identityId}/faces`),
+
+  deleteIdentityFace: (identityId: string, faceId: string) =>
+    http.delete(`/api/faces/identities/${identityId}/faces/${faceId}`),
 
   uploadFacePhoto: async (identityId: string, file: File): Promise<UploadFacePhotoResponse> => {
     const formData = new FormData();

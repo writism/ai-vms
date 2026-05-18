@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.face.adapter.outbound.external.qdrant_embedding_adapter import QdrantEmbeddingAdapter
 from app.domains.face.adapter.outbound.persistence.in_memory_face_repository import InMemoryFaceRepository
 from app.domains.face.adapter.outbound.persistence.in_memory_identity_repository import InMemoryIdentityRepository
+from app.domains.face.application.port.face_embedding_port import FaceEmbeddingPort
 from app.domains.face.application.port.face_repository_port import FaceRepositoryPort
 from app.domains.face.application.port.identity_repository_port import IdentityRepositoryPort
 from app.domains.face.application.usecase.face_search_usecase import RegisterFaceUseCase, SearchFaceUseCase
@@ -79,6 +80,14 @@ def get_delete_identity_usecase(session: AsyncSession | None = Depends(_get_sess
 
 def get_face_repo(session: AsyncSession | None = Depends(_get_session)) -> FaceRepositoryPort:
     return _get_face_repo(session)
+
+
+def get_embedding_store() -> FaceEmbeddingPort:
+    return _embedding_store
+
+
+def get_identity_repo(session: AsyncSession | None = Depends(_get_session)) -> IdentityRepositoryPort:
+    return _get_identity_repo(session)
 
 
 def get_list_recognition_logs_usecase(session: AsyncSession | None = Depends(_get_session)) -> ListRecognitionLogsUseCase:

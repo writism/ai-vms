@@ -143,8 +143,8 @@ export function MediaServerSection() {
                       <li key={c.camera_ip} className="text-xs text-orange-700">
                         <span className="font-mono font-medium">{c.camera_ip}</span>
                         {" → "}
-                        {c.servers.map((s) => (
-                          <span key={s} className="font-mono">{s}</span>
+                        {c.servers.map((s, i) => (
+                          <span key={`${s}-${i}`} className="font-mono">{s}</span>
                         )).reduce((prev, curr) => (
                           <>{prev}, {curr}</>
                         ))}

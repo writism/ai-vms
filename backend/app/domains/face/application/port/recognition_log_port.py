@@ -21,3 +21,6 @@ class RecognitionLogPort(ABC):
     async def assign_cluster_to_identity(
         self, cluster_id: UUID, identity_id: UUID, identity_name: str, identity_type: str
     ) -> int: ...
+
+    @abstractmethod
+    async def delete_by_id(self, log_id: UUID) -> bool: ...

@@ -10,6 +10,7 @@ from app.domains.face.application.port.identity_repository_port import IdentityR
 from app.domains.face.application.port.recognition_log_port import RecognitionLogPort
 from app.domains.face.application.response.face_response import RecognitionLogResponse
 from app.domains.face.application.service.face_cluster_service import FaceClusterService
+from app.domains.face.application.service.face_matching_service import FaceMatchingService
 from app.domains.face.domain.entity.recognition_log import RecognitionLog
 from app.infrastructure.config.settings import settings
 from app.infrastructure.event_bus.notification_dispatcher import NotificationDispatcher
@@ -40,6 +41,7 @@ class CreateRecognitionLogUseCase:
         self._danger_event_repo = danger_event_repo
         self._dispatcher = dispatcher
         self._cluster_service = cluster_service
+        self._matching_service = FaceMatchingService(embedding_store)
 
     async def execute(
         self,
@@ -49,59 +51,41 @@ class CreateRecognitionLogUseCase:
         image_path: str | None = None,
         quality_score: float = 0.0,
     ) -> RecognitionLogResponse:
-        results = await self._embedding_store.search(embedding=embedding, limit=10, threshold=0.0)
-
-        # identity 있는 결과 우선 + 동일 identity 내 최고 score 채택
-        identity_results = [r for r in results if r.identity_id is not None]
-        if identity_results:
-            best_per_identity: dict[UUID, float] = {}
-            for r in identity_results:
-                cur = best_per_identity.get(r.identity_id, -1.0)
-                if r.score > cur:
-                    best_per_identity[r.identity_id] = r.score
-            top_identity_id, top_score = max(
-                best_per_identity.items(), key=lambda kv: kv[1]
-            )
-        else:
-            top_score = results[0].score if results else 0.0
-            top_identity_id = None
+        match = await self._matching_service.match(embedding, threshold)
 
         logger.info(
             "Face search: camera=%s top_score=%.3f threshold=%.3f identity=%s candidates=%d",
-            camera_id, top_score, threshold, top_identity_id, len(results),
+            camera_id, match.top_score, threshold, match.top_identity_id, match.candidate_count,
         )
 
         now = datetime.now(UTC)
-        is_registered = bool(top_identity_id and top_score >= threshold)
 
-        # identity 30s 쿨다운: 같은 사람을 짧은 시간 내 반복 기록/브로드캐스트하지 않음
-        if is_registered and top_identity_id is not None:
-            last = _identity_last_logged.get(top_identity_id)
+        # identity 쿨다운: 같은 사람을 짧은 시간 내 반복 기록/브로드캐스트하지 않음
+        if match.is_registered and match.top_identity_id is not None:
+            last = _identity_last_logged.get(match.top_identity_id)
             cooldown = settings.identity_recognition_cooldown_sec
             if last is not None and (now - last).total_seconds() < cooldown:
                 logger.debug(
                     "identity cooldown skip: identity=%s elapsed=%.1fs",
-                    top_identity_id, (now - last).total_seconds(),
+                    match.top_identity_id, (now - last).total_seconds(),
                 )
-                # multishot 성장은 시도(다양한 각도 임베딩 확보 가치)
                 await self._maybe_multishot_grow(
-                    top_identity_id, top_score, embedding, now
+                    match.top_identity_id, match.top_score, embedding, now
                 )
                 return RecognitionLogResponse(
                     id=uuid4(),
                     camera_id=camera_id,
-                    identity_id=top_identity_id,
+                    identity_id=match.top_identity_id,
                     identity_name="",
                     identity_type="",
-                    confidence=top_score,
+                    confidence=match.top_score,
                     is_registered=True,
                     image_url=None,
                     created_at=now,
                 )
 
         cluster_id: UUID | None = None
-
-        if not is_registered and self._cluster_service is not None:
+        if not match.is_registered and self._cluster_service is not None:
             try:
                 cluster = await self._cluster_service.cluster_face(
                     embedding=embedding,
@@ -113,14 +97,14 @@ class CreateRecognitionLogUseCase:
             except Exception as exc:
                 logger.warning("face cluster failed: %s", exc)
 
-        if is_registered:
-            identity = await self._identity_repo.find_by_id(top_identity_id)
+        if match.is_registered:
+            identity = await self._identity_repo.find_by_id(match.top_identity_id)
             log = RecognitionLog(
                 camera_id=camera_id,
-                identity_id=top_identity_id,
+                identity_id=match.top_identity_id,
                 identity_name=identity.name if identity else "Unknown",
                 identity_type=identity.identity_type.value if identity else "UNKNOWN",
-                confidence=top_score,
+                confidence=match.top_score,
                 is_registered=True,
                 embedding=embedding,
                 image_path=image_path,
@@ -132,7 +116,7 @@ class CreateRecognitionLogUseCase:
                 identity_id=None,
                 identity_name="미등록 인물",
                 identity_type="UNKNOWN",
-                confidence=top_score,
+                confidence=match.top_score,
                 is_registered=False,
                 embedding=embedding,
                 image_path=image_path,
@@ -140,7 +124,6 @@ class CreateRecognitionLogUseCase:
             )
 
         saved = await self._log_repo.save(log)
-
         image_url = f"/{saved.image_path}" if saved.image_path else None
 
         response = RecognitionLogResponse(

@@ -87,3 +87,20 @@ class SimilarIdentityResponse(BaseModel):
     identity_type: str
     face_image_url: str | None
     score: float
+
+
+class FaceDetailResponse(BaseModel):
+    face_id: UUID
+    image_url: str | None
+    quality_score: float
+    created_at: datetime
+    is_outlier: bool = False
+
+
+class OutlierSnapshotResponse(BaseModel):
+    log_id: UUID
+    image_url: str
+    confidence: float
+    created_at: datetime
+    is_outlier: bool
+    similarity_to_mean: float

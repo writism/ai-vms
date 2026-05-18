@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Identity } from "../../domain/model/face";
-import { faceApi } from "../../infrastructure/api/faceApi";
+import { faceApi, type FaceDetail } from "../../infrastructure/api/faceApi";
 import { env } from "@/infrastructure/config/env";
 import { humanizeMediaError } from "../lib/media-error";
+import { formatShort } from "../lib/format-time";
 
 export function EditIdentityDialog({
   identity,
@@ -31,17 +32,29 @@ export function EditIdentityDialog({
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [faces, setFaces] = useState<FaceDetail[]>([]);
+  const [deletingFaceIds, setDeletingFaceIds] = useState<Set<string>>(new Set());
+  const [enlargedFace, setEnlargedFace] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const loadFaces = useCallback(() => {
+    faceApi.listIdentityFaces(identity.id).then(setFaces).catch(() => {});
+  }, [identity.id]);
+
+  useEffect(() => { loadFaces(); }, [loadFaces]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") {
+        if (enlargedFace) { setEnlargedFace(null); return; }
+        handleClose();
+      }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [enlargedFace]);
 
   useEffect(() => {
     return () => stopWebcam();
@@ -131,9 +144,41 @@ export function EditIdentityDialog({
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
+      if (enlargedFace) { setEnlargedFace(null); return; }
       handleClose();
     }
   };
+
+  const handleDeleteFace = async (faceId: string) => {
+    if (!confirm("이 얼굴 데이터를 삭제하시겠습니까?")) return;
+    setDeletingFaceIds((prev) => new Set(prev).add(faceId));
+    try {
+      await faceApi.deleteIdentityFace(identity.id, faceId);
+      setFaces((prev) => prev.filter((f) => f.face_id !== faceId));
+    } finally {
+      setDeletingFaceIds((prev) => {
+        const next = new Set(prev);
+        next.delete(faceId);
+        return next;
+      });
+    }
+  };
+
+  if (enlargedFace) {
+    return (
+      <div
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80"
+        onClick={() => setEnlargedFace(null)}
+      >
+        <img
+          src={enlargedFace}
+          alt="확대 보기"
+          className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -246,6 +291,67 @@ export function EditIdentityDialog({
                     />
                   </div>
                 </>
+              )}
+
+              {faces.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium">
+                    등록된 얼굴 ({faces.length}개)
+                    {faces.some((f) => f.is_outlier) && (
+                      <span className="ml-2 text-xs font-normal text-orange-500">
+                        이상치 {faces.filter((f) => f.is_outlier).length}개
+                      </span>
+                    )}
+                  </label>
+                  <div className="mt-1 grid grid-cols-5 gap-1.5">
+                    {faces.map((face) => {
+                      const url = face.image_url ? `${env.apiUrl}${face.image_url}` : null;
+                      const isDeleting = deletingFaceIds.has(face.face_id);
+                      return (
+                        <div
+                          key={face.face_id}
+                          className={`group relative aspect-square overflow-hidden rounded-md border ${
+                            face.is_outlier ? "border-orange-400 ring-1 ring-orange-400" : "border-border"
+                          }`}
+                        >
+                          {url ? (
+                            <button
+                              type="button"
+                              onClick={() => setEnlargedFace(url)}
+                              className="block h-full w-full"
+                              title={`품질 ${Math.round(face.quality_score * 100)}% · ${formatShort(face.created_at)}${face.is_outlier ? " · 이상치" : ""}`}
+                            >
+                              <img src={url} alt="얼굴" className="h-full w-full object-cover group-hover:opacity-80 transition-opacity" />
+                            </button>
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                              없음
+                            </div>
+                          )}
+                          {face.is_outlier && (
+                            <div className="absolute top-0.5 left-0.5 rounded bg-orange-500/90 px-1 text-[8px] font-bold text-white leading-4">
+                              이상
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFace(face.face_id)}
+                            disabled={isDeleting}
+                            className="absolute top-0.5 right-0.5 hidden group-hover:flex h-4 w-4 items-center justify-center rounded bg-black/70 text-[9px] text-white hover:bg-red-600 disabled:opacity-50"
+                            title="삭제"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {faces.some((f) => f.is_outlier) && (
+                    <p className="mt-1 text-xs text-orange-500">
+                      이상치 얼굴은 클러스터 평균과 유사도가 낮습니다. 다른 인물이 섞였을 수 있으므로 삭제를 권장합니다.
+                    </p>
+                  )}
+                </div>
               )}
 
               <div>

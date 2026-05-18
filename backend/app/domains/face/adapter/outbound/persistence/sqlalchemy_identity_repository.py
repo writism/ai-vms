@@ -7,29 +7,24 @@ from app.domains.face.application.port.identity_repository_port import IdentityR
 from app.domains.face.domain.entity.identity import Identity
 from app.domains.face.infrastructure.mapper.face_mapper import IdentityMapper
 from app.domains.face.infrastructure.orm.face_orm import IdentityORM
+from app.infrastructure.persistence.base_repository import SqlAlchemyBaseRepository
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class SqlAlchemyIdentityRepository(IdentityRepositoryPort):
+class SqlAlchemyIdentityRepository(
+    SqlAlchemyBaseRepository[IdentityORM, Identity],
+    IdentityRepositoryPort,
+):
     def __init__(self, session: AsyncSession):
-        self._session = session
+        super().__init__(session, IdentityORM)
 
-    async def save(self, identity: Identity) -> Identity:
-        orm = IdentityMapper.to_orm(identity)
-        merged = await self._session.merge(orm)
-        await self._session.flush()
-        await self._session.refresh(merged)
-        return IdentityMapper.to_entity(merged)
+    def _to_entity(self, orm: IdentityORM) -> Identity:
+        return IdentityMapper.to_entity(orm)
 
-    async def find_by_id(self, identity_id: UUID) -> Identity | None:
-        orm = await self._session.get(IdentityORM, identity_id)
-        return IdentityMapper.to_entity(orm) if orm else None
-
-    async def find_all(self) -> list[Identity]:
-        result = await self._session.execute(select(IdentityORM))
-        return [IdentityMapper.to_entity(orm) for orm in result.scalars().all()]
+    def _to_orm(self, entity: Identity) -> IdentityORM:
+        return IdentityMapper.to_orm(entity)
 
     async def update(self, identity: Identity) -> Identity:
         orm = await self._session.get(IdentityORM, identity.id)
@@ -65,10 +60,10 @@ class SqlAlchemyIdentityRepository(IdentityRepositoryPort):
         orm = result.scalar_one_or_none()
         return IdentityMapper.to_entity(orm) if orm else None
 
-    async def delete(self, identity_id: UUID) -> bool:
-        orm = await self._session.get(IdentityORM, identity_id)
-        if orm is None:
-            return False
-        await self._session.delete(orm)
-        await self._session.flush()
-        return True
+    async def find_by_ids(self, ids: list[UUID]) -> list[Identity]:
+        if not ids:
+            return []
+        result = await self._session.execute(
+            select(IdentityORM).where(IdentityORM.id.in_(ids))
+        )
+        return [IdentityMapper.to_entity(orm) for orm in result.scalars().all()]

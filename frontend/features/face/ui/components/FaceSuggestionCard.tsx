@@ -40,7 +40,7 @@ export function FaceSuggestionCard({
 
   const handleRegister = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onRegister(suggestion);
+    setGalleryOpen(true);
   };
 
   return (

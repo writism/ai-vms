@@ -38,3 +38,6 @@ class InMemoryIdentityRepository(IdentityRepositoryPort):
             if identity.name == name:
                 return identity
         return None
+
+    async def find_by_ids(self, ids: list[UUID]) -> list[Identity]:
+        return [self._store[i] for i in ids if i in self._store]

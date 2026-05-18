@@ -41,22 +41,19 @@ class SearchFaceUseCase:
             limit=request.limit,
             threshold=request.threshold,
         )
-        matches: list[FaceMatchResponse] = []
-        for r in results:
-            identity_name = "Unknown"
-            if r.identity_id:
-                identity = await self._identity_repo.find_by_id(r.identity_id)
-                if identity:
-                    identity_name = identity.name
 
-            matches.append(
-                FaceMatchResponse(
-                    identity_id=r.identity_id or r.face_id,
-                    face_id=r.face_id,
-                    score=r.score,
-                    identity_name=identity_name,
-                    is_confirmed=r.score >= 0.75,
-                    needs_verification=0.55 <= r.score < 0.75,
-                )
+        identity_ids = [r.identity_id for r in results if r.identity_id]
+        identities = await self._identity_repo.find_by_ids(identity_ids)
+        identity_map = {i.id: i for i in identities}
+
+        return [
+            FaceMatchResponse(
+                identity_id=r.identity_id or r.face_id,
+                face_id=r.face_id,
+                score=r.score,
+                identity_name=identity_map[r.identity_id].name if r.identity_id and r.identity_id in identity_map else "Unknown",
+                is_confirmed=r.score >= 0.75,
+                needs_verification=0.55 <= r.score < 0.75,
             )
-        return matches
+            for r in results
+        ]
