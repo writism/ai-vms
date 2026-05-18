@@ -78,6 +78,8 @@ class Settings(BaseSettings):
     pipeline_capture_interval: float = 0.05
     pipeline_best_frame_window: float = 1.0  # 이 시간(초) 내 캡처된 프레임 중 최고화질 1장만 처리
 
+    encryption_key: str = ""
+
     model_config = {"env_file": ("../.env", ".env"), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

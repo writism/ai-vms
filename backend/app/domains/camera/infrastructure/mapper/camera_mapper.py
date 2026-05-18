@@ -1,6 +1,36 @@
+import logging
+
 from app.domains.camera.domain.entity.camera import Camera, CameraStatus
 from app.domains.camera.domain.entity.network import Network
 from app.domains.camera.infrastructure.orm.camera_orm import CameraORM, NetworkORM
+
+logger = logging.getLogger(__name__)
+
+
+def _encrypt_rtsp(url: str | None) -> str | None:
+    if not url:
+        return url
+    try:
+        from app.infrastructure.config.settings import settings
+        from app.infrastructure.crypto.encryption import encrypt, is_encrypted
+        if settings.encryption_key and not is_encrypted(url):
+            return encrypt(url, settings.encryption_key)
+    except Exception as e:
+        logger.debug("rtsp encrypt skipped: %s", e)
+    return url
+
+
+def _decrypt_rtsp(url: str | None) -> str | None:
+    if not url:
+        return url
+    try:
+        from app.infrastructure.config.settings import settings
+        from app.infrastructure.crypto.encryption import decrypt, is_encrypted
+        if settings.encryption_key and is_encrypted(url):
+            return decrypt(url, settings.encryption_key)
+    except Exception as e:
+        logger.debug("rtsp decrypt skipped: %s", e)
+    return url
 
 
 class CameraMapper:
@@ -12,7 +42,7 @@ class CameraMapper:
             ip_address=orm.ip_address,
             network_id=orm.network_id,
             status=CameraStatus(orm.status),
-            rtsp_url=orm.rtsp_url,
+            rtsp_url=_decrypt_rtsp(orm.rtsp_url),
             onvif_port=orm.onvif_port,
             manufacturer=orm.manufacturer,
             model=orm.model,
@@ -30,7 +60,7 @@ class CameraMapper:
             ip_address=entity.ip_address,
             network_id=entity.network_id,
             status=entity.status.value,
-            rtsp_url=entity.rtsp_url,
+            rtsp_url=_encrypt_rtsp(entity.rtsp_url),
             onvif_port=entity.onvif_port,
             manufacturer=entity.manufacturer,
             model=entity.model,

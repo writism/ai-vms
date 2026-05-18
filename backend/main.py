@@ -13,6 +13,7 @@ from app.domains.camera.adapter.inbound.api.network_router import router as netw
 from app.domains.face.adapter.inbound.api.face_router import router as face_router
 from app.domains.stream.adapter.inbound.api.stream_router import router as stream_router
 from app.domains.agent.adapter.inbound.api.agent_router import router as agent_router
+from app.domains.setting.adapter.inbound.api.setting_router import router as setting_router
 from app.infrastructure.config.settings import settings
 from app.infrastructure.errors import DomainError, domain_error_handler, unhandled_error_handler
 from app.infrastructure.logging_config import setup_logging
@@ -65,6 +66,22 @@ async def lifespan(app: FastAPI):
         await sync_cameras_to_streams(Go2RtcStreamAdapter())
     except Exception as exc:
         logger.warning("camera→stream sync skipped due to error: %s", exc)
+
+    try:
+        if settings.use_database:
+            from app.domains.setting.adapter.outbound.persistence.sqlalchemy_setting_repository import (
+                SqlAlchemySettingRepository,
+            )
+            from app.domains.setting.application.usecase.setting_usecase import LoadRuntimeSettingsUseCase
+            from app.infrastructure.database.session import async_session_factory
+
+            async with async_session_factory() as session:
+                async with session.begin():
+                    setting_repo = SqlAlchemySettingRepository(session)
+                    await LoadRuntimeSettingsUseCase(setting_repo).execute()
+            logger.info("Runtime settings loaded from DB")
+    except Exception as exc:
+        logger.warning("Runtime settings load skipped: %s", exc)
 
     try:
         if settings.use_database:
@@ -129,6 +146,7 @@ app.include_router(alert_router, prefix="/api")
 app.include_router(event_router, prefix="/api")
 app.include_router(notification_router, prefix="/api")
 app.include_router(agent_router, prefix="/api")
+app.include_router(setting_router, prefix="/api")
 
 
 @app.get("/health")
