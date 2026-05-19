@@ -162,13 +162,11 @@ async def health_check():
     async def check_turn() -> bool:
         try:
             loop = asyncio.get_event_loop()
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(2)
-            stun_request = bytes.fromhex("000100002112a442000000000000000000000000")
-            await loop.run_in_executor(None, sock.sendto, stun_request, ("localhost", 3478))
-            data = await loop.run_in_executor(None, sock.recv, 1024)
+            await loop.run_in_executor(None, sock.connect, ("coturn", 3478))
             sock.close()
-            return len(data) > 0
+            return True
         except Exception:
             return False
 

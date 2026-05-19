@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { env } from "@/infrastructure/config/env";
 
-export type ServiceStatus = "checking" | "connected" | "disconnected";
+export type ServiceStatus = "checking" | "connected" | "warn" | "disconnected";
 
 export interface ServiceHealth {
   api: ServiceStatus;
@@ -11,12 +11,16 @@ export interface ServiceHealth {
   turn: ServiceStatus;
 }
 
-async function checkHttp(url: string): Promise<boolean> {
+type CheckResult = "connected" | "warn" | "disconnected";
+
+async function checkHttp(url: string): Promise<CheckResult> {
   try {
     const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(3000) });
-    return res.ok;
-  } catch {
-    return false;
+    return res.ok ? "connected" : "disconnected";
+  } catch (e) {
+    // TypeError = network/SSL error (server reachable but cert untrusted, or CORS preflight blocked)
+    if (e instanceof TypeError) return "warn";
+    return "disconnected";
   }
 }
 
@@ -33,24 +37,26 @@ export function useServiceHealth() {
 
   useEffect(() => {
     const check = async () => {
-      const [apiOk, go2rtcOk] = await Promise.all([
+      const [apiStatus, go2rtcStatus] = await Promise.all([
         checkHttp(`${env.apiUrl}/api/cameras`),
         checkHttp(`${env.go2rtcUrl}/api/streams`),
       ]);
 
-      let turnOk = false;
+      let turnStatus: CheckResult = "disconnected";
       try {
         const res = await fetch(`${env.apiUrl}/health`, { signal: AbortSignal.timeout(5000) });
         if (res.ok) {
           const data: HealthResponse = await res.json();
-          turnOk = data.services.turn ?? false;
+          turnStatus = data.services.turn ? "connected" : "disconnected";
         }
-      } catch {}
+      } catch (e) {
+        if (e instanceof TypeError) turnStatus = "warn";
+      }
 
       setHealth({
-        api: apiOk ? "connected" : "disconnected",
-        go2rtc: go2rtcOk ? "connected" : "disconnected",
-        turn: turnOk ? "connected" : "disconnected",
+        api: apiStatus,
+        go2rtc: go2rtcStatus,
+        turn: turnStatus,
       });
     };
     check();

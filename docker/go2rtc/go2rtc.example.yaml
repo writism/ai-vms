@@ -11,6 +11,10 @@ webrtc:
     # WebRTC ICE candidates. 호스트 LAN IP를 채워 넣고 STUN을 함께 사용한다.
     # 예: 192.168.0.42:8555
     - stun:8555
+  ice_servers:
+    - urls: [turn:localhost:3478]
+      username: aivms
+      credential: aivms1234
 
 # streams 섹션은 비워 둔다.
 # AI-VMS backend가 startup 시 DB에 등록된 카메라를 PUT /api/streams로

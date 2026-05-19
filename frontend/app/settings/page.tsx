@@ -17,8 +17,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const statusConfig: Record<ServiceStatus, { color: string; label: string }> = {
-  checking: { color: "bg-yellow-400", label: "확인 중" },
+  checking: { color: "bg-gray-400", label: "확인 중" },
   connected: { color: "bg-green-500", label: "연결됨" },
+  warn: { color: "bg-yellow-400", label: "인증서 미승인" },
   disconnected: { color: "bg-red-500", label: "연결 실패" },
 };
 
