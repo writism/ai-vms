@@ -18,8 +18,12 @@ from app.infrastructure.event_bus.ws_manager import ws_manager
 
 logger = logging.getLogger(__name__)
 
+from app.infrastructure.pipeline.recognition_cooldown_guard import (
+    cluster_cooldown_guard,
+    identity_cooldown_guard,
+)
+
 # 프로세스 단위 in-memory state (단일 백엔드 프로세스 가정)
-_identity_last_logged: dict[UUID, datetime] = {}
 _identity_last_grown: dict[UUID, datetime] = {}
 
 
@@ -60,14 +64,16 @@ class CreateRecognitionLogUseCase:
 
         now = datetime.now(UTC)
 
-        # identity 쿨다운: 같은 사람을 짧은 시간 내 반복 기록/브로드캐스트하지 않음
+        # 등록 인물 쿨다운: 동일 인물 × 동일 카메라 조합으로 짧은 시간 내 반복 기록 억제
         if match.is_registered and match.top_identity_id is not None:
-            last = _identity_last_logged.get(match.top_identity_id)
             cooldown = settings.identity_recognition_cooldown_sec
-            if last is not None and (now - last).total_seconds() < cooldown:
+            if identity_cooldown_guard.is_suppressed(
+                match.top_identity_id, camera_id, cooldown, now
+            ):
                 logger.debug(
                     "identity cooldown skip: identity=%s elapsed=%.1fs",
-                    match.top_identity_id, (now - last).total_seconds(),
+                    match.top_identity_id,
+                    identity_cooldown_guard.elapsed_sec(match.top_identity_id, camera_id, now),
                 )
                 await self._maybe_multishot_grow(
                     match.top_identity_id, match.top_score, embedding, now
@@ -96,6 +102,23 @@ class CreateRecognitionLogUseCase:
                 cluster_id = cluster.id
             except Exception as exc:
                 logger.warning("face cluster failed: %s", exc)
+
+        # 미등록 인물 쿨다운: 동일 클러스터 × 동일 카메라 조합으로 반복 기록 억제
+        if not match.is_registered and cluster_id is not None:
+            cooldown = settings.unregistered_recognition_cooldown_sec
+            if cluster_cooldown_guard.is_suppressed(cluster_id, camera_id, cooldown, now):
+                logger.debug("cluster cooldown skip: cluster=%s", cluster_id)
+                return RecognitionLogResponse(
+                    id=uuid4(),
+                    camera_id=camera_id,
+                    identity_id=None,
+                    identity_name="",
+                    identity_type="",
+                    confidence=match.top_score,
+                    is_registered=False,
+                    image_url=None,
+                    created_at=now,
+                )
 
         if match.is_registered:
             identity = await self._identity_repo.find_by_id(match.top_identity_id)
@@ -153,10 +176,12 @@ class CreateRecognitionLogUseCase:
         })
 
         if saved.is_registered and saved.identity_id is not None:
-            _identity_last_logged[saved.identity_id] = saved.created_at
+            identity_cooldown_guard.mark(saved.identity_id, camera_id, saved.created_at)
             await self._maybe_multishot_grow(
                 saved.identity_id, saved.confidence, embedding, saved.created_at
             )
+        elif not saved.is_registered and cluster_id is not None:
+            cluster_cooldown_guard.mark(cluster_id, camera_id, saved.created_at)
 
         if saved.is_registered and self._alert_rule_repo and self._danger_event_repo:
             await self._create_face_alert(saved)

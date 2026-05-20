@@ -68,7 +68,6 @@ class SqlAlchemyRecognitionLogRepository(RecognitionLogPort):
                 identity_name=identity_name,
                 identity_type=identity_type,
                 is_registered=True,
-                confidence=0.0,
             )
         )
         # cluster의 linked_identity_id도 업데이트

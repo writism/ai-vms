@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     multishot_per_identity_max: int = 20
     multishot_identity_cooldown_sec: float = 60.0
     identity_recognition_cooldown_sec: float = 30.0
+    unregistered_recognition_cooldown_sec: float = 10.0
     pipeline_queue_maxsize: int = 2
     pipeline_capture_interval: float = 0.05
     pipeline_best_frame_window: float = 1.0  # 이 시간(초) 내 캡처된 프레임 중 최고화질 1장만 처리
