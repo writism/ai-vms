@@ -114,7 +114,8 @@ export function RecognitionDetailDialog({
       try {
         const res = await faceApi.assignRecognitionLog(data.logId, identityId);
         setAssigned(res.identity_name);
-        onAssigned?.();
+        // 성공 메시지를 1.2초 보여준 뒤 닫기 & 목록 갱신
+        setTimeout(() => onAssigned?.(), 1200);
       } catch {
         alert("등록 중 오류가 발생했습니다.");
       } finally {

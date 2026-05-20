@@ -35,13 +35,10 @@ export function useRecognitionLogs() {
   );
 
   const dedupedLogs = useMemo(() => {
-    const allLogs = [...realtimeLogs, ...(data ?? [])];
-    const seen = new Set<string>();
-    return allLogs.filter((log) => {
-      if (seen.has(log.id)) return false;
-      seen.add(log.id);
-      return true;
-    });
+    // DB 데이터가 권위 있는 소스 — 동일 ID는 DB 버전이 우선 (등록 후 갱신 반영)
+    const dbIds = new Set((data ?? []).map((log) => log.id));
+    const realtimeNew = realtimeLogs.filter((r) => !dbIds.has(r.id));
+    return [...realtimeNew, ...(data ?? [])];
   }, [realtimeLogs, data]);
 
   return {
