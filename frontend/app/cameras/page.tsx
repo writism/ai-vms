@@ -7,6 +7,7 @@ import { useCameras } from "@/features/camera/application/hooks/useCameras";
 import { CameraGrid } from "@/features/camera/ui/components/CameraGrid";
 import { CameraListRow } from "@/features/camera/ui/components/CameraListRow";
 import { DiscoveryDialog } from "@/features/camera/ui/components/DiscoveryDialog";
+import { AddCameraByIpDialog } from "@/features/camera/ui/components/AddCameraByIpDialog";
 import { ViewModeToggle } from "@/ui/components/ViewModeToggle";
 import { viewModeAtom } from "@/features/preferences/application/atoms/viewModeAtom";
 
@@ -14,6 +15,7 @@ export default function CamerasPage() {
   const { cameras, isLoading, refresh } = useCameras();
   const viewMode = useAtomValue(viewModeAtom);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  const [addByIpOpen, setAddByIpOpen] = useState(false);
 
   return (
     <div>
@@ -26,6 +28,7 @@ export default function CamerasPage() {
         </div>
         <div className="flex items-center gap-2">
           <ViewModeToggle />
+          <Button variant="outline" onClick={() => setAddByIpOpen(true)}>직접 추가</Button>
           <Button onClick={() => setDiscoveryOpen(true)}>카메라 검색</Button>
         </div>
       </div>
@@ -49,6 +52,12 @@ export default function CamerasPage() {
       <DiscoveryDialog
         open={discoveryOpen}
         onClose={() => setDiscoveryOpen(false)}
+        onRegistered={() => refresh()}
+      />
+
+      <AddCameraByIpDialog
+        open={addByIpOpen}
+        onClose={() => setAddByIpOpen(false)}
         onRegistered={() => refresh()}
       />
     </div>

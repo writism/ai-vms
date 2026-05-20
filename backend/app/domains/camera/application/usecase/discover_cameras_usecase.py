@@ -2,7 +2,7 @@ import logging
 
 from app.domains.camera.application.port.camera_repository_port import CameraRepositoryPort
 from app.domains.camera.application.port.discovery_port import CameraDiscoveryPort
-from app.domains.camera.application.request.discovery_request import BatchRegisterCamerasRequest, DiscoverCamerasRequest
+from app.domains.camera.application.request.discovery_request import BatchRegisterCamerasRequest, DiscoverCamerasRequest, ProbeCameraRequest
 from app.domains.camera.application.response.camera_response import CameraResponse
 from app.domains.camera.application.response.discovery_response import DiscoveredCameraResponse
 from app.domains.camera.application.service.camera_status_resolver import (
@@ -32,6 +32,29 @@ class DiscoverCamerasUseCase:
             )
             for d in devices
         ]
+
+
+class ProbeCameraUseCase:
+    async def execute(self, request: ProbeCameraRequest) -> DiscoveredCameraResponse | None:
+        from app.infrastructure.onvif.client import get_device_detail
+
+        detail = await get_device_detail(
+            ip=request.ip_address,
+            port=request.port,
+            username=request.username,
+            password=request.password,
+            timeout=request.timeout,
+        )
+        if detail.info is None and detail.main_rtsp_url is None:
+            return None
+        return DiscoveredCameraResponse(
+            ip_address=detail.ip_address,
+            port=detail.port,
+            manufacturer=detail.info.manufacturer if detail.info else None,
+            model=detail.info.model if detail.info else None,
+            rtsp_url=detail.main_rtsp_url,
+            onvif_address=f"http://{detail.ip_address}:{detail.port}/onvif/device_service",
+        )
 
 
 class BatchRegisterCamerasUseCase:

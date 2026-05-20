@@ -13,12 +13,13 @@ from app.domains.camera.adapter.inbound.api.dependencies import (
     get_update_camera_usecase,
 )
 from app.domains.camera.application.request.camera_request import FetchRtspUrlRequest, RegisterCameraRequest, UpdateCameraRequest
-from app.domains.camera.application.request.discovery_request import BatchRegisterCamerasRequest, DiscoverCamerasRequest
+from app.domains.camera.application.request.discovery_request import BatchRegisterCamerasRequest, DiscoverCamerasRequest, ProbeCameraRequest
 from app.domains.camera.application.response.camera_response import CameraResponse
 from app.domains.camera.application.response.discovery_response import DiscoveredCameraResponse
 from app.domains.camera.application.usecase.discover_cameras_usecase import (
     BatchRegisterCamerasUseCase,
     DiscoverCamerasUseCase,
+    ProbeCameraUseCase,
 )
 from app.domains.camera.application.usecase.delete_camera_usecase import DeleteCameraUseCase
 from app.domains.camera.application.usecase.get_camera_usecase import GetCameraUseCase, ListCamerasUseCase
@@ -92,6 +93,15 @@ async def discover_cameras(
     usecase: DiscoverCamerasUseCase = Depends(get_discover_cameras_usecase),
 ) -> list[DiscoveredCameraResponse]:
     return await usecase.execute(request)
+
+
+@router.post("/probe", response_model=DiscoveredCameraResponse)
+async def probe_camera(request: ProbeCameraRequest) -> DiscoveredCameraResponse:
+    """IP·포트·계정으로 ONVIF 직접 연결하여 카메라 정보를 조회한다."""
+    result = await ProbeCameraUseCase().execute(request)
+    if result is None:
+        raise HTTPException(status_code=422, detail="연결할 수 없는 카메라입니다")
+    return result
 
 
 @router.post("/batch", response_model=list[CameraResponse], status_code=201)

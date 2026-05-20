@@ -18,3 +18,11 @@ class CameraRegistrationItem(BaseModel):
     onvif_port: int = 80
     manufacturer: str | None = None
     model: str | None = None
+
+
+class ProbeCameraRequest(BaseModel):
+    ip_address: str
+    port: int = 80
+    username: str | None = None
+    password: str | None = None
+    timeout: float = 5.0

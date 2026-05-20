@@ -17,6 +17,9 @@ export const cameraApi = {
   discover: (timeout = 3.0) =>
     http.post<DiscoveredCamera[]>("/api/cameras/discover", { timeout }),
 
+  probe: (data: { ip_address: string; port?: number; username?: string; password?: string }) =>
+    http.post<DiscoveredCamera>("/api/cameras/probe", data),
+
   update: (
     id: string,
     data: {
