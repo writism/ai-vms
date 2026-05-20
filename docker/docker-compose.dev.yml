@@ -13,6 +13,7 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - GO2RTC_URL=http://host.docker.internal:1984
+      - GO2RTC_RTSP_HOST=host.docker.internal
       - CORS_ORIGINS=http://localhost:3000,http://192.168.0.42:3000,https://localhost:3000,https://192.168.0.42:3000
       - USE_DATABASE=true
       - DEBUG=true
