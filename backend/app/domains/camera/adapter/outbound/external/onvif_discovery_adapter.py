@@ -1,11 +1,12 @@
 from app.domains.camera.application.port.discovery_port import CameraDiscoveryPort, DiscoveredCameraInfo
+from app.infrastructure.config.settings import settings
 from app.infrastructure.onvif.client import get_device_detail
 from app.infrastructure.onvif.discovery import discover_onvif_devices
 
 
 class OnvifDiscoveryAdapter(CameraDiscoveryPort):
     async def discover(self, timeout: float = 3.0) -> list[DiscoveredCameraInfo]:
-        devices = await discover_onvif_devices(timeout=timeout)
+        devices = await discover_onvif_devices(timeout=timeout, scan_subnet=settings.discovery_scan_subnet)
         return [
             DiscoveredCameraInfo(
                 ip_address=d.ip_address,

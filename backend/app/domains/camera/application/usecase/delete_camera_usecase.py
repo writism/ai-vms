@@ -4,7 +4,7 @@ from app.domains.alert.application.port.danger_event_repository_port import Dang
 from app.domains.camera.application.port.camera_repository_port import CameraRepositoryPort
 from app.domains.event.application.port.event_repository_port import EventRepositoryPort
 from app.domains.stream.application.port.stream_port import StreamPort
-from app.infrastructure.errors import ConflictError, NotFoundError
+from app.infrastructure.errors import NotFoundError
 
 
 class DeleteCameraUseCase:
@@ -24,14 +24,6 @@ class DeleteCameraUseCase:
         camera = await self._camera_repo.find_by_id(camera_id)
         if camera is None:
             raise NotFoundError("카메라를 찾을 수 없습니다")
-
-        danger_count = await self._danger_event_repo.count(camera_id=camera_id)
-        if danger_count > 0:
-            raise ConflictError(f"이 카메라에 연결된 위험 이벤트가 {danger_count}건 있어 삭제할 수 없습니다")
-
-        event_count = await self._event_repo.count(camera_id=camera_id)
-        if event_count > 0:
-            raise ConflictError(f"이 카메라에 연결된 이벤트가 {event_count}건 있어 삭제할 수 없습니다")
 
         try:
             await self._stream_port.unregister_stream(str(camera_id))

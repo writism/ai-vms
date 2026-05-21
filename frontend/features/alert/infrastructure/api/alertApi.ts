@@ -22,6 +22,7 @@ export interface DangerEventList {
 export interface AlertRule {
   id: string;
   name: string;
+  camera_id: string | null;
   danger_types: string[];
   min_severity: string;
   notify_websocket: boolean;
@@ -37,11 +38,25 @@ export interface CreateAlertRuleRequest {
   name: string;
   danger_types: string[];
   min_severity: string;
+  camera_id?: string | null;
   notify_websocket?: boolean;
   notify_mqtt?: boolean;
   notify_email?: boolean;
   email_recipients?: string[];
   enable_face_recognition?: boolean;
+}
+
+export interface UpdateAlertRuleRequest {
+  name?: string;
+  camera_id?: string | null;
+  danger_types?: string[];
+  min_severity?: string;
+  notify_websocket?: boolean;
+  notify_mqtt?: boolean;
+  notify_email?: boolean;
+  email_recipients?: string[];
+  enable_face_recognition?: boolean;
+  is_active?: boolean;
 }
 
 export const alertApi = {
@@ -61,6 +76,9 @@ export const alertApi = {
 
   createRule: (data: CreateAlertRuleRequest) =>
     http.post<AlertRule>("/api/alerts/rules", data),
+
+  updateRule: (ruleId: string, data: UpdateAlertRuleRequest) =>
+    http.patch<AlertRule>(`/api/alerts/rules/${ruleId}`, data),
 
   deleteRule: (ruleId: string) =>
     http.delete<void>(`/api/alerts/rules/${ruleId}`),

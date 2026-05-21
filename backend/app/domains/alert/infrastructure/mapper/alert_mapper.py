@@ -48,6 +48,7 @@ class AlertRuleMapper:
         return AlertRule(
             id=orm.id,
             name=orm.name,
+            camera_id=orm.camera_id,
             danger_types=list(orm.danger_types),
             min_severity=orm.min_severity,
             notify_websocket=orm.notify_websocket,
@@ -65,6 +66,7 @@ class AlertRuleMapper:
         return AlertRuleORM(
             id=entity.id,
             name=entity.name,
+            camera_id=entity.camera_id,
             danger_types=entity.danger_types,
             min_severity=entity.min_severity,
             notify_websocket=entity.notify_websocket,

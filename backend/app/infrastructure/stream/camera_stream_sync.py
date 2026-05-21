@@ -30,6 +30,21 @@ async def sync_cameras_to_streams(stream_port: StreamPort) -> tuple[int, int]:
         repo = SqlAlchemyCameraRepository(session)
         cameras = await repo.find_all()
 
+    camera_ids = {str(cam.id) for cam in cameras}
+
+    # Remove orphaned streams (UUID-named streams not in DB)
+    try:
+        existing = await stream_port.list_streams()
+        for name in list(existing.keys()):
+            if is_camera_stream_name(name) and name not in camera_ids:
+                try:
+                    await stream_port.unregister_stream(name)
+                    logger.info("removed orphaned go2rtc stream: %s", name)
+                except Exception as exc:
+                    logger.warning("failed to remove orphaned stream %s: %s", name, exc)
+    except Exception as exc:
+        logger.warning("could not list go2rtc streams for cleanup: %s", exc)
+
     registered = 0
     failed = 0
     for cam in cameras:

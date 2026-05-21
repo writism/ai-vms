@@ -8,12 +8,14 @@ from app.domains.alert.adapter.inbound.api.dependencies import (
     get_delete_alert_rule_usecase,
     get_list_alert_rules_usecase,
     get_list_danger_events_usecase,
+    get_update_alert_rule_usecase,
     get_update_event_status_usecase,
 )
 from app.domains.alert.application.request.alert_request import (
     CreateAlertRuleRequest,
     CreateDangerEventRequest,
     ListDangerEventsRequest,
+    UpdateAlertRuleRequest,
     UpdateEventStatusRequest,
 )
 from app.domains.alert.application.response.alert_response import (
@@ -25,6 +27,7 @@ from app.domains.alert.application.usecase.alert_rule_usecase import (
     CreateAlertRuleUseCase,
     DeleteAlertRuleUseCase,
     ListAlertRulesUseCase,
+    UpdateAlertRuleUseCase,
 )
 from app.domains.alert.application.usecase.danger_event_usecase import (
     CreateDangerEventUseCase,
@@ -89,6 +92,18 @@ async def list_alert_rules(
     usecase: ListAlertRulesUseCase = Depends(get_list_alert_rules_usecase),
 ) -> list[AlertRuleResponse]:
     return await usecase.execute()
+
+
+@router.patch("/rules/{rule_id}", response_model=AlertRuleResponse)
+async def update_alert_rule(
+    rule_id: UUID,
+    request: UpdateAlertRuleRequest,
+    usecase: UpdateAlertRuleUseCase = Depends(get_update_alert_rule_usecase),
+) -> AlertRuleResponse:
+    result = await usecase.execute(rule_id, request)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return result
 
 
 @router.delete("/rules/{rule_id}", status_code=204)

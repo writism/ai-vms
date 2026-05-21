@@ -45,6 +45,7 @@ class DangerEventListResponse(BaseModel):
 class AlertRuleResponse(BaseModel):
     id: UUID
     name: str
+    camera_id: UUID | None
     danger_types: list[str]
     min_severity: str
     notify_websocket: bool
@@ -60,6 +61,7 @@ class AlertRuleResponse(BaseModel):
         return AlertRuleResponse(
             id=r.id,
             name=r.name,
+            camera_id=r.camera_id,
             danger_types=r.danger_types,
             min_severity=r.min_severity,
             notify_websocket=r.notify_websocket,

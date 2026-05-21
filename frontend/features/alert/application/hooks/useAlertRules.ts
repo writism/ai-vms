@@ -5,6 +5,7 @@ import useSWR from "swr";
 export interface AlertRule {
   id: string;
   name: string;
+  camera_id: string | null;
   danger_types: string[];
   min_severity: string;
   notify_websocket: boolean;

@@ -21,5 +21,17 @@ class InMemoryAlertRuleRepository(AlertRuleRepositoryPort):
     async def find_active_rules(self) -> list[AlertRule]:
         return [r for r in self._store.values() if r.is_active]
 
+    async def find_matching_rules(self, camera_id: UUID, danger_type: str | None = None) -> list[AlertRule]:
+        result = []
+        for r in self._store.values():
+            if not r.is_active:
+                continue
+            if r.camera_id is not None and r.camera_id != camera_id:
+                continue
+            if danger_type is not None and danger_type not in r.danger_types and not r.enable_face_recognition:
+                continue
+            result.append(r)
+        return result
+
     async def delete(self, rule_id: UUID) -> bool:
         return self._store.pop(rule_id, None) is not None

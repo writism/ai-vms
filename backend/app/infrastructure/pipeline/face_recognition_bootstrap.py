@@ -380,16 +380,17 @@ class _FaceRecognitionEngine:
                 cluster_service = FaceClusterService(
                     SqlAlchemyFaceClusterRepository(session)
                 )
+                event_repo = SqlAlchemyEventRepository(session)
                 usecase = CreateRecognitionLogUseCase(
                     log_repo=SqlAlchemyRecognitionLogRepository(session),
                     identity_repo=SqlAlchemyIdentityRepository(session),
                     embedding_store=embedding_store,
                     alert_rule_repo=SqlAlchemyAlertRuleRepository(session),
                     danger_event_repo=SqlAlchemyDangerEventRepository(session),
+                    event_repo=event_repo,
                     dispatcher=notification_dispatcher,
                     cluster_service=cluster_service,
                 )
-                event_repo = SqlAlchemyEventRepository(session)
 
                 loop = asyncio.get_event_loop()
                 for face in usable:

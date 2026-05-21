@@ -131,7 +131,12 @@ async def _try_get_detail(
     use_ws_security: bool,
 ) -> OnvifDeviceDetail | None:
     base_url = f"http://{ip}:{port}/onvif/device_service"
-    media_url = f"http://{ip}:{port}/onvif/media_service"
+    # Try all known paths: Tapo uses /onvif/service, Hikvision uses /onvif/media_service
+    media_url_candidates = [
+        f"http://{ip}:{port}/onvif/media_service",
+        f"http://{ip}:{port}/onvif/service",
+        f"http://{ip}:{port}/onvif/Media",
+    ]
     headers = {"Content-Type": "application/soap+xml; charset=utf-8"}
 
     auth = None
@@ -163,27 +168,32 @@ async def _try_get_detail(
         if auth_failed:
             return None
 
-        try:
-            resp = await _post_soap(client, media_url, PROFILES_BODY, headers, username, password, use_ws_security)
-            if resp.status_code == 200 and not _is_soap_fault(resp.text):
-                body = resp.text
-                token_pattern = re.compile(r'token="([^"]+)"')
-                name_pattern = re.compile(r"<[\w:]*Name[^>]*>(.*?)</[\w:]*Name>", re.DOTALL)
-                tokens = token_pattern.findall(body)
-                names = name_pattern.findall(body)
-
-                for i, token in enumerate(tokens):
-                    name = names[i].strip() if i < len(names) else token
-                    profiles.append(OnvifProfile(token=token, name=name))
-            elif resp.status_code == 401 or _is_soap_fault(resp.text):
-                return None
-        except Exception:
-            logger.debug("Failed to get profiles from %s:%d (ws_security=%s)", ip, port, use_ws_security)
+        active_media_url: str | None = None
+        for candidate in media_url_candidates:
+            try:
+                resp = await _post_soap(client, candidate, PROFILES_BODY, headers, username, password, use_ws_security)
+                if resp.status_code == 200 and not _is_soap_fault(resp.text):
+                    active_media_url = candidate
+                    body = resp.text
+                    token_pattern = re.compile(r'token="([^"]+)"')
+                    name_pattern = re.compile(r"<[\w:]*Name[^>]*>(.*?)</[\w:]*Name>", re.DOTALL)
+                    tokens = token_pattern.findall(body)
+                    names = name_pattern.findall(body)
+                    for i, token in enumerate(tokens):
+                        name = names[i].strip() if i < len(names) else token
+                        profiles.append(OnvifProfile(token=token, name=name))
+                    break
+                elif resp.status_code == 401 or _is_soap_fault(resp.text):
+                    return None
+            except Exception:
+                logger.debug("Failed to get profiles from %s (ws_security=%s)", candidate, use_ws_security)
 
         for profile in profiles:
+            if active_media_url is None:
+                break
             try:
                 stream_body = STREAM_URI_TEMPLATE.format(profile_token=profile.token)
-                resp = await _post_soap(client, media_url, stream_body, headers, username, password, use_ws_security)
+                resp = await _post_soap(client, active_media_url, stream_body, headers, username, password, use_ws_security)
                 if resp.status_code == 200:
                     uri = _extract_tag(resp.text, "Uri")
                     if uri:

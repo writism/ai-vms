@@ -29,6 +29,7 @@ class AlertRuleORM(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(100))
+    camera_id: Mapped[UUID | None] = mapped_column(ForeignKey("cameras.id"), nullable=True)
     danger_types: Mapped[list[str]] = mapped_column(ARRAY(String(30)))
     min_severity: Mapped[str] = mapped_column(String(20))
     notify_websocket: Mapped[bool] = mapped_column(Boolean, default=True)

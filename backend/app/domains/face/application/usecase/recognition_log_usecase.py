@@ -5,6 +5,8 @@ from uuid import UUID, uuid4
 from app.domains.alert.application.port.alert_rule_repository_port import AlertRuleRepositoryPort
 from app.domains.alert.application.port.danger_event_repository_port import DangerEventRepositoryPort
 from app.domains.alert.domain.entity.danger_event import DangerEvent, DangerType, Severity
+from app.domains.event.application.port.event_repository_port import EventRepositoryPort
+from app.domains.event.domain.entity.event import Event, EventType
 from app.domains.face.application.port.face_embedding_port import FaceEmbeddingPort
 from app.domains.face.application.port.identity_repository_port import IdentityRepositoryPort
 from app.domains.face.application.port.recognition_log_port import RecognitionLogPort
@@ -35,6 +37,7 @@ class CreateRecognitionLogUseCase:
         embedding_store: FaceEmbeddingPort,
         alert_rule_repo: AlertRuleRepositoryPort | None = None,
         danger_event_repo: DangerEventRepositoryPort | None = None,
+        event_repo: EventRepositoryPort | None = None,
         dispatcher: NotificationDispatcher | None = None,
         cluster_service: FaceClusterService | None = None,
     ):
@@ -43,6 +46,7 @@ class CreateRecognitionLogUseCase:
         self._embedding_store = embedding_store
         self._alert_rule_repo = alert_rule_repo
         self._danger_event_repo = danger_event_repo
+        self._event_repo = event_repo
         self._dispatcher = dispatcher
         self._cluster_service = cluster_service
         self._matching_service = FaceMatchingService(embedding_store)
@@ -227,7 +231,7 @@ class CreateRecognitionLogUseCase:
 
     async def _create_face_alert(self, log: RecognitionLog) -> None:
         try:
-            rules = await self._alert_rule_repo.find_active_rules()
+            rules = await self._alert_rule_repo.find_matching_rules(log.camera_id)
             matching = [r for r in rules if r.enable_face_recognition]
             if not matching:
                 return
@@ -240,17 +244,27 @@ class CreateRecognitionLogUseCase:
                 f"신뢰도: {confidence_pct}%"
             )
 
-            event = DangerEvent(
+            danger_event = DangerEvent(
                 camera_id=log.camera_id,
                 danger_type=DangerType.FACE_RECOGNIZED,
                 severity=Severity.MEDIUM,
                 confidence=log.confidence,
                 description=description,
             )
-            saved_event = await self._danger_event_repo.save(event)
+            saved_danger = await self._danger_event_repo.save(danger_event)
+
+            if self._event_repo is not None:
+                await self._event_repo.save(Event(
+                    event_type=EventType.DANGER_DETECTED,
+                    camera_id=log.camera_id,
+                    identity_id=log.identity_id,
+                    danger_event_id=saved_danger.id,
+                    description=description,
+                    snapshot_path=log.image_path,
+                ))
 
             if self._dispatcher is not None:
-                await self._dispatcher.dispatch(saved_event, matching)
+                await self._dispatcher.dispatch(saved_danger, matching)
             else:
                 logger.debug("dispatcher not configured; face alert event saved without broadcast")
         except Exception as e:

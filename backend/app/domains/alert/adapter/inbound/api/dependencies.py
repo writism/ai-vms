@@ -9,6 +9,7 @@ from app.domains.alert.application.usecase.alert_rule_usecase import (
     CreateAlertRuleUseCase,
     DeleteAlertRuleUseCase,
     ListAlertRulesUseCase,
+    UpdateAlertRuleUseCase,
 )
 from app.domains.alert.application.usecase.danger_event_usecase import (
     CreateDangerEventUseCase,
@@ -62,6 +63,10 @@ def get_create_alert_rule_usecase(session: AsyncSession | None = Depends(_get_se
 
 def get_list_alert_rules_usecase(session: AsyncSession | None = Depends(_get_session)) -> ListAlertRulesUseCase:
     return ListAlertRulesUseCase(_get_rule_repo(session))
+
+
+def get_update_alert_rule_usecase(session: AsyncSession | None = Depends(_get_session)) -> UpdateAlertRuleUseCase:
+    return UpdateAlertRuleUseCase(_get_rule_repo(session))
 
 
 def get_delete_alert_rule_usecase(session: AsyncSession | None = Depends(_get_session)) -> DeleteAlertRuleUseCase:

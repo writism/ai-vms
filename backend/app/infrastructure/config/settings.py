@@ -81,6 +81,10 @@ class Settings(BaseSettings):
 
     encryption_key: str = ""
 
+    # Docker 환경에서 물리 네트워크 카메라 검색을 위한 유니캐스트 스캔 서브넷
+    # 예: "192.168.0.0/24" — 미설정 시 멀티캐스트만 사용
+    discovery_scan_subnet: str = ""
+
     model_config = {"env_file": ("../.env", ".env"), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

@@ -14,13 +14,17 @@ from app.domains.stream.application.port.stream_port import StreamPort
 logger = logging.getLogger(__name__)
 
 
-_TCP_TRANSPORT_MANUFACTURERS = {"tp-link", "tapo"}
+_TCP_TRANSPORT_KEYWORDS = ("tp-link", "tplink", "tapo")
 
 
-def _needs_tcp_transport(manufacturer: str | None) -> bool:
+def _needs_tcp_transport(manufacturer: str | None, onvif_port: int | None = None) -> bool:
+    # Tapo cameras use ONVIF port 2020; also catch by manufacturer name
+    if onvif_port == 2020:
+        return True
     if not manufacturer:
         return False
-    return manufacturer.lower() in _TCP_TRANSPORT_MANUFACTURERS
+    mfr = manufacturer.lower()
+    return any(kw in mfr for kw in _TCP_TRANSPORT_KEYWORDS)
 
 
 def _inject_credentials(rtsp_url: str, username: str, password: str) -> str:
@@ -93,7 +97,12 @@ class FetchRtspUrlUseCase:
         rtsp_url = detail.rtsp_url
         if rtsp_url and request.username and request.password:
             rtsp_url = _inject_credentials(rtsp_url, request.username, request.password)
-        if rtsp_url and _needs_tcp_transport(detail.manufacturer):
+        # Tapo (ONVIF port 2020): ONVIF auth often fails but RTSP stream is accessible.
+        # Fall back to standard Tapo RTSP URL format when ONVIF returns nothing.
+        if not rtsp_url and camera.onvif_port == 2020:
+            base = f"rtsp://{camera.ip_address}:554/stream1"
+            rtsp_url = _inject_credentials(base, request.username, request.password) if request.username and request.password else base
+        if rtsp_url and _needs_tcp_transport(detail.manufacturer, camera.onvif_port):
             rtsp_url += "#tcp"
         camera.rtsp_url = rtsp_url
         if detail.manufacturer:

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAtomValue } from "jotai";
 import { useEvents } from "@/features/event/application/hooks/useEvents";
 import type { EventItem } from "@/features/event/infrastructure/api/eventApi";
+import { useCameras } from "@/features/camera/application/hooks/useCameras";
 import { ViewModeToggle } from "@/ui/components/ViewModeToggle";
 import { viewModeAtom } from "@/features/preferences/application/atoms/viewModeAtom";
 import { RecognitionLogList } from "@/features/face/ui/components/RecognitionLogList";
@@ -67,8 +68,11 @@ function groupByDate(events: EventItem[]) {
 
 export default function EventsPage() {
   const { events, total, isLoading } = useEvents();
+  const { cameras } = useCameras();
   const viewMode = useAtomValue(viewModeAtom);
   const [filter, setFilter] = useState<string>("ALL");
+
+  const cameraMap = Object.fromEntries(cameras.map((c) => [c.id, c.name]));
 
   const isFaceLog = filter === "FACE_LOG";
 
@@ -145,6 +149,11 @@ export default function EventsPage() {
                       <div className="flex-1">
                         <p className="text-sm font-medium">
                           {typeLabels[event.event_type] ?? event.event_type}
+                          {event.camera_id && cameraMap[event.camera_id] && (
+                            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                              — {cameraMap[event.camera_id]}
+                            </span>
+                          )}
                         </p>
                         {event.description && (
                           <p className="text-xs text-muted-foreground">{event.description}</p>
@@ -175,6 +184,9 @@ export default function EventsPage() {
                 </div>
                 <span className="w-32 shrink-0 truncate font-medium">
                   {typeLabels[event.event_type] ?? event.event_type}
+                </span>
+                <span className="w-28 shrink-0 truncate text-xs text-muted-foreground">
+                  {event.camera_id ? (cameraMap[event.camera_id] ?? event.camera_id.slice(0, 8)) : ""}
                 </span>
                 <span className="flex-1 truncate text-xs text-muted-foreground">
                   {event.description ?? ""}

@@ -1,5 +1,6 @@
 import asyncio
 import fcntl
+import ipaddress
 import logging
 import re
 import socket
@@ -30,6 +31,21 @@ PROBE_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <d:Probe>
       <d:Types>dn:NetworkVideoTransmitter</d:Types>
     </d:Probe>
+  </e:Body>
+</e:Envelope>"""
+
+# 타입 필터 없는 범용 probe — Hikvision 등 일부 펌웨어가 typed probe에 미응답
+PROBE_TEMPLATE_ANY = """<?xml version="1.0" encoding="UTF-8"?>
+<e:Envelope xmlns:e="http://www.w3.org/2003/05/soap-envelope"
+            xmlns:w="http://schemas.xmlsoap.org/ws/2004/08/addressing"
+            xmlns:d="http://schemas.xmlsoap.org/ws/2005/04/discovery">
+  <e:Header>
+    <w:MessageID>uuid:{message_id}</w:MessageID>
+    <w:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</w:To>
+    <w:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</w:Action>
+  </e:Header>
+  <e:Body>
+    <d:Probe/>
   </e:Body>
 </e:Envelope>"""
 
@@ -173,17 +189,59 @@ async def _open_probe_socket(
             lambda: OnvifDiscoveryProtocol(seen_ips, devices),
             sock=sock,
         )
-        probe = PROBE_TEMPLATE.format(message_id=uuid.uuid4())
-        transport.sendto(probe.encode("utf-8"), (WS_DISCOVERY_MULTICAST, WS_DISCOVERY_PORT))
+        dest = (WS_DISCOVERY_MULTICAST, WS_DISCOVERY_PORT)
+        transport.sendto(PROBE_TEMPLATE.format(message_id=uuid.uuid4()).encode("utf-8"), dest)
+        transport.sendto(PROBE_TEMPLATE_ANY.format(message_id=uuid.uuid4()).encode("utf-8"), dest)
         return transport, protocol
     except OSError as exc:
         logger.warning("WS-Discovery skip iface %s (%s): %s", iface_name, iface_ip, exc)
         return None
 
 
+async def _open_unicast_scan(
+    loop: asyncio.AbstractEventLoop,
+    subnet: str,
+    seen_ips: set[str],
+    devices: list[DiscoveredDevice],
+) -> tuple[asyncio.DatagramTransport, OnvifDiscoveryProtocol] | None:
+    try:
+        network = ipaddress.ip_network(subnet, strict=False)
+    except ValueError as exc:
+        logger.warning("Invalid discovery_scan_subnet %r: %s", subnet, exc)
+        return None
+
+    if network.num_addresses > 4096:
+        logger.warning("discovery_scan_subnet %s too large (%d hosts), skipping unicast scan", subnet, network.num_addresses)
+        return None
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("0.0.0.0", 0))
+        sock.setblocking(False)
+
+        transport, protocol = await loop.create_datagram_endpoint(
+            lambda: OnvifDiscoveryProtocol(seen_ips, devices),
+            sock=sock,
+        )
+    except OSError as exc:
+        logger.warning("Unicast scan socket error: %s", exc)
+        return None
+
+    hosts = list(network.hosts())
+    logger.info("WS-Discovery unicast scan: subnet=%s hosts=%d", subnet, len(hosts))
+    for ip in hosts:
+        dest = (str(ip), WS_DISCOVERY_PORT)
+        transport.sendto(PROBE_TEMPLATE.format(message_id=uuid.uuid4()).encode("utf-8"), dest)
+        transport.sendto(PROBE_TEMPLATE_ANY.format(message_id=uuid.uuid4()).encode("utf-8"), dest)
+
+    return transport, protocol
+
+
 async def discover_onvif_devices(
     interface_ip: str = "0.0.0.0",
     timeout: float = DEFAULT_TIMEOUT,
+    scan_subnet: str = "",
 ) -> list[DiscoveredDevice]:
     loop = asyncio.get_running_loop()
 
@@ -196,30 +254,36 @@ async def discover_onvif_devices(
 
     seen_ips: set[str] = set()
     devices: list[DiscoveredDevice] = []
-    pairs: list[tuple[asyncio.DatagramTransport, OnvifDiscoveryProtocol]] = []
+    all_pairs: list[tuple[asyncio.DatagramTransport, OnvifDiscoveryProtocol]] = []
 
     start = time.monotonic()
     for name, ip in targets:
         result = await _open_probe_socket(loop, name, ip, seen_ips, devices)
         if result is not None:
-            pairs.append(result)
+            all_pairs.append(result)
 
-    if not pairs:
+    if scan_subnet:
+        result = await _open_unicast_scan(loop, scan_subnet, seen_ips, devices)
+        if result is not None:
+            all_pairs.append(result)
+
+    if not all_pairs:
         logger.warning("WS-Discovery: no usable interface (targets=%s)", targets)
         return []
 
     await asyncio.sleep(timeout)
 
     received_total = 0
-    for transport, protocol in pairs:
+    for transport, protocol in all_pairs:
         received_total += protocol.received_count
         transport.close()
 
     elapsed = time.monotonic() - start
     logger.info(
-        "WS-Discovery completed: interfaces=%s probes=%d responses=%d devices=%d elapsed=%.2fs",
+        "WS-Discovery completed: interfaces=%s subnet=%s probes=%d responses=%d devices=%d elapsed=%.2fs",
         [f"{n}={ip}" for n, ip in targets],
-        len(pairs),
+        scan_subnet or "none",
+        len(all_pairs),
         received_total,
         len(devices),
         elapsed,

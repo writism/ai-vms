@@ -8,6 +8,7 @@ class AlertRule:
     name: str
     danger_types: list[str]
     min_severity: str
+    camera_id: UUID | None = None
     notify_websocket: bool = True
     notify_mqtt: bool = False
     notify_email: bool = False

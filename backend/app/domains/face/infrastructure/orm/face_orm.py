@@ -12,7 +12,7 @@ class RecognitionLogORM(Base):
     __tablename__ = "recognition_logs"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    camera_id: Mapped[UUID] = mapped_column(ForeignKey("cameras.id"))
+    camera_id: Mapped[UUID | None] = mapped_column(ForeignKey("cameras.id"), nullable=True)
     identity_id: Mapped[UUID | None] = mapped_column(ForeignKey("identities.id"), nullable=True)
     identity_name: Mapped[str] = mapped_column(String(100))
     identity_type: Mapped[str] = mapped_column(String(20))
